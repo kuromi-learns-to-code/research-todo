@@ -94,11 +94,8 @@ function doGet(e) {
   return t.evaluate()
     .setTitle('Research To-do')
     .setFaviconUrl('https://fonts.gstatic.com/s/e/notoemoji/latest/2705/512.png')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
-    // 아이폰 '홈 화면에 추가' 시 주소창 없이 앱처럼 열리도록
-    .addMetaTag('apple-mobile-web-app-capable', 'yes')
-    .addMetaTag('mobile-web-app-capable', 'yes')
-    .addMetaTag('apple-mobile-web-app-status-bar-style', 'default');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+  // (Apps Script는 viewport 등 일부 meta 태그만 허용 → 앱 설정은 GitHub Pages 쪽 index.html에서 처리)
 }
 
 function apiGet_(p) {
