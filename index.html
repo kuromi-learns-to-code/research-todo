@@ -436,6 +436,12 @@ function call(fn, ...args) {
     }
     if (!j.ok) throw new Error(j.error);
     return j.data;
+  }, (err) => {
+    // 네트워크/CORS 실패 (브라우저 메시지: Failed to fetch)
+    if (err instanceof TypeError) {
+      throw new Error('Apps Script에 연결하지 못했습니다 (Failed to fetch). ① Code.gs 저장 후 "배포 관리 → 새 버전"으로 배포했는지 ② 액세스가 "모든 사용자"인지 ③ URL이 /exec 로 끝나는지 확인하세요.');
+    }
+    throw err;
   });
 }
 
