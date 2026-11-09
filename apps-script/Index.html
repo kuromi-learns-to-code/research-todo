@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+:root {
+  --bg: #f5f5f2; --surface: #ffffff; --text: #1c1c1e; --muted: #6e6e73; --line: #e2e2dd;
+  --accent: #2c6e5c; --accent-weak: #e3efea; --accent-text: #ffffff;
+  --danger: #c0392b; --warn: #b26a00; --tag-bg: #ecebe6; --tag-text: #4a4a4f;
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121212; --surface: #1d1d1f; --text: #ececec; --muted: #9b9ba0; --line: #2f2f32;
+    --accent: #6cc3a6; --accent-weak: #1d332c; --accent-text: #0e1f1a;
+    --danger: #ef6f61; --warn: #f0b04f; --tag-bg: #2c2c2f; --tag-text: #c9c9cd;
+    --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body {
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  -webkit-text-size-adjust: 100%; padding-bottom: env(safe-area-inset-bottom);
+}
+button, input, textarea { font: inherit; color: inherit; }
+input, textarea { font-size: 16px; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 0 16px 48px; }
+
+header.top { display: flex; align-items: flex-end; justify-content: space-between; padding: 20px 0 12px; }
+header.top h1 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
+header.top .sub { color: var(--muted); font-size: 13px; }
+.icon-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; width: 38px; height: 38px; cursor: pointer; display: grid; place-items: center; }
+.icon-btn svg { width: 18px; height: 18px; }
+.icon-btn.spin svg { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+nav.tabs { display: flex; gap: 4px; background: var(--tag-bg); padding: 4px; border-radius: 12px; margin-bottom: 16px; }
+nav.tabs button { flex: 1; border: 0; background: transparent; padding: 8px 0; border-radius: 9px; cursor: pointer; color: var(--muted); font-weight: 500; }
+nav.tabs button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 16px; box-shadow: var(--shadow); }
+.card h2 { margin: 0 0 12px; font-size: 16px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.card h2 .count { font-size: 13px; color: var(--muted); font-weight: 400; }
+
+.row { display: flex; gap: 8px; }
+.field { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 9px 11px; min-width: 0; width: 100%; outline: none; }
+.field:focus { border-color: var(--accent); }
+textarea.field { resize: vertical; min-height: 64px; line-height: 1.45; }
+.proj { flex: 0 0 34%; max-width: 150px; }
+.btn { border: 0; background: var(--accent); color: var(--accent-text); border-radius: 10px; padding: 9px 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); font-weight: 500; }
+.btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--line); font-weight: 500; }
+.btn.sm { padding: 5px 10px; font-size: 13px; border-radius: 8px; }
+.btn:disabled { opacity: .5; }
+
+.chips { display: flex; gap: 6px; overflow-x: auto; margin: 12px -2px 4px; padding: 0 2px 2px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 4px 11px; font-size: 13px; cursor: pointer; white-space: nowrap; color: var(--muted); }
+.chip.on { background: var(--accent-weak); border-color: transparent; color: var(--accent); font-weight: 600; }
+
+ul.list { list-style: none; margin: 0; padding: 0; }
+.task { display: flex; align-items: flex-start; gap: 10px; padding: 10px 2px; border-top: 1px solid var(--line); }
+.task:first-child { border-top: 0; }
+.check { flex: 0 0 auto; width: 24px; height: 24px; margin-top: 1px; border-radius: 50%; border: 2px solid var(--muted); background: transparent; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.check svg { width: 14px; height: 14px; opacity: 0; }
+.task.done .check { background: var(--accent); border-color: var(--accent); }
+.task.done .check svg { opacity: 1; color: var(--accent-text); }
+.tbody { flex: 1; min-width: 0; cursor: pointer; }
+.ttitle { word-break: break-word; }
+.task.done .ttitle { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--muted); }
+.tmeta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.tag { display: inline-block; background: var(--tag-bg); color: var(--tag-text); border-radius: 6px; padding: 0 6px; margin-right: 6px; font-size: 12.5px; font-weight: 600; vertical-align: 1px; }
+.duebar { display: flex; gap: 6px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.duebar .lbl { font-size: 13px; color: var(--muted); margin-right: 2px; }
+.duebar .field.due-date { width: auto; flex: 0 1 auto; padding: 4px 8px; font-size: 14px; border-radius: 999px; }
+.duebar .field.due-date.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.duebar .clear { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; padding: 4px; }
+.due { display: inline-block; font-size: 12px; font-weight: 600; color: var(--muted); margin-right: 8px; }
+.due.soon { color: var(--warn); }
+.due.over { color: var(--danger); }
+.empty { color: var(--muted); font-size: 14px; padding: 12px 2px; }
+.divider { font-size: 12px; color: var(--muted); padding: 12px 2px 4px; border-top: 1px solid var(--line); }
+
+
+.rec-form { display: grid; gap: 8px; }
+.rec-form .lbl { font-size: 12px; color: var(--muted); margin-bottom: -4px; }
+.rec-form .acts { display: flex; gap: 8px; justify-content: flex-end; }
+.rec { padding: 10px 2px; border-top: 1px solid var(--line); cursor: pointer; }
+.rec:first-child { border-top: 0; }
+.rec.editing { background: var(--accent-weak); border-radius: 8px; padding-left: 8px; }
+.rec .c, .rec .n { white-space: pre-wrap; word-break: break-word; }
+.rec .n { color: var(--muted); margin-top: 3px; }
+.rec .addn { margin-top: 6px; }
+.nexts { display: grid; gap: 6px; }
+.nextrow { display: flex; gap: 6px; align-items: flex-start; }
+.nextrow .mk { padding-top: 9px; flex-shrink: 0; }
+.nextrow textarea.field { min-height: 0; resize: none; overflow: hidden; }
+.nextrow .rm { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 10px 4px; flex-shrink: 0; }
+.addnext { justify-self: start; }
+.subhead { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 4px; font-size: 13px; color: var(--muted); }
+
+.datebar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.datebar .field { flex: 1; }
+pre.note { margin: 0; white-space: pre-wrap; word-break: break-word; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 14px; font: 15px/1.6 -apple-system, "Apple SD Gothic Neo", sans-serif; min-height: 120px; }
+.help { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+.help code { background: var(--tag-bg); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+label.inline { display: flex; align-items: center; gap: 6px; font-size: 14px; margin: 10px 0 6px; }
+.urlbox { display: flex; gap: 8px; }
+.urlbox .field { font-size: 13px; font-family: ui-monospace, Menlo, monospace; }
+
+dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--text); padding: 18px; width: min(92vw, 440px); }
+dialog::backdrop { background: rgba(0,0,0,.35); }
+dialog h3 { margin: 0 0 12px; font-size: 16px; }
+dialog .grid { display: grid; gap: 8px; }
+dialog .acts { display: flex; gap: 8px; margin-top: 14px; }
+dialog .acts .sp { flex: 1; }
+
+#toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(120px); background: #2b2b2e; color: #fff; padding: 10px 14px; border-radius: 12px; display: flex; gap: 12px; align-items: center; font-size: 14px; transition: transform .2s; max-width: calc(100vw - 32px); z-index: 10; }
+#toast.show { transform: translateX(-50%) translateY(0); }
+#toast button { background: transparent; border: 0; color: #8fe0c4; font-weight: 700; cursor: pointer; padding: 0; }
+
+.gate { max-width: 380px; margin: 18vh auto 0; text-align: center; }
+.gate p { color: var(--muted); font-size: 14px; }
+.gate .row { margin-top: 12px; }
+.loading { text-align: center; color: var(--muted); padding: 40px 0; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="gate" class="gate" hidden>
+    <h1 style="font-size:20px">Research To-do</h1>
+    <p>접속 키를 입력하세요.<br>Apps Script 편집기에서 <b>setup</b>을 실행하면 실행 로그에 표시됩니다.</p>
+    <form id="gateForm" class="row">
+      <input id="gateKey" class="field" autocomplete="off" autocapitalize="off" placeholder="KEY">
+      <button class="btn">확인</button>
+    </form>
+    <p id="gateMsg" style="color:var(--danger)"></p>
+  </div>
+
+  <div id="app" hidden>
+    <header class="top">
+      <div>
+        <h1>Research To-do</h1>
+        <div class="sub" id="todayLabel"></div>
+      </div>
+      <button class="icon-btn" id="refreshBtn" aria-label="새로고침" title="새로고침">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></svg>
+      </button>
+    </header>
+
+    <nav class="tabs">
+      <button data-tab="today" class="on">오늘</button>
+      <button data-tab="notes">노트</button>
+      <button data-tab="import">가져오기</button>
+    </nav>
+
+    <div id="loading" class="loading">불러오는 중…</div>
+
+    <!-- ============ 오늘 ============ -->
+    <section id="tab-today" hidden>
+      <div class="card">
+        <h2>Research To-do <span class="count" id="taskCount"></span></h2>
+        <form id="taskForm" class="row">
+          <input id="tProj" class="field proj" list="projList" placeholder="프로젝트" autocomplete="off">
+          <input id="tTitle" class="field" placeholder="할 일 추가" autocomplete="off" enterkeyhint="done">
+          <button class="btn">추가</button>
+        </form>
+        <div class="duebar" id="tDueBar">
+          <span class="lbl">마감</span>
+          <button type="button" class="chip" data-due="today">오늘</button>
+          <button type="button" class="chip" data-due="tomorrow">내일</button>
+          <button type="button" class="chip" data-due="week">이번주 안</button>
+          <input type="date" class="field due-date" aria-label="마감일 직접 선택">
+          <button type="button" class="clear" hidden aria-label="마감일 지우기">✕</button>
+        </div>
+        <div id="chips" class="chips"></div>
+        <ul id="taskList" class="list"></ul>
+      </div>
+
+      <div class="card">
+        <h2>Analysis Records</h2>
+        <form id="recForm" class="rec-form">
+          <div class="row">
+            <input id="rDate" type="date" class="field" style="flex:0 0 auto;width:auto">
+            <input id="rProj" class="field" list="projList" placeholder="프로젝트" autocomplete="off">
+          </div>
+          <div class="lbl">▷ 기록</div>
+          <textarea id="rContent" class="field" rows="3"></textarea>
+          <div class="lbl">✍🏻 추가 정보</div>
+          <div id="rNexts" class="nexts"></div>
+          <button type="button" id="rAddNext" class="btn ghost sm addnext">+ ✍🏻 추가</button>
+          <div class="acts">
+            <button type="button" id="rDelete" class="btn danger" hidden>삭제</button>
+            <button type="button" id="rCancel" class="btn ghost" hidden>취소</button>
+            <button id="rSave" class="btn">기록 저장</button>
+          </div>
+        </form>
+        <div class="subhead"><span id="recListLabel"></span></div>
+        <ul id="recList" class="list"></ul>
+      </div>
+    </section>
+
+    <!-- ============ 노트 ============ -->
+    <section id="tab-notes" hidden>
+      <div class="card">
+        <h2>아이폰 메모로 넘어갈 내용</h2>
+        <div class="datebar">
+          <button class="icon-btn" id="nPrev" aria-label="이전 날">‹</button>
+          <input id="nDate" type="date" class="field">
+          <button class="icon-btn" id="nNext" aria-label="다음 날">›</button>
+          <button class="btn ghost" id="nCopy">복사</button>
+        </div>
+        <pre class="note" id="notePre"></pre>
+        <label class="inline"><input type="checkbox" id="nHeader"> 첫 줄에 날짜 제목 넣기 (메모 제목이 날짜가 됨)</label>
+      </div>
+
+      <div class="card">
+        <h2>아이폰 단축어 연결</h2>
+        <p class="help" style="margin-top:0">단축어의 <b>URL</b> 동작에 아래 주소를 넣고 → <b>URL의 콘텐츠 가져오기</b> → <b>메모 생성</b>(또는 메모에 추가)로 연결하세요. 위의 ‘날짜 제목’ 체크 여부가 주소에 반영됩니다.</p>
+        <div class="urlbox" style="margin-top:10px">
+          <input id="scUrl" class="field" readonly>
+          <button class="btn ghost" id="scCopy">복사</button>
+        </div>
+        <p class="help">특정 날짜를 넘기려면 주소 끝에 <code>&amp;date=2026-11-06</code> 처럼 붙이면 됩니다.</p>
+        <p class="help"><a id="backupLink" href="#" target="_blank" rel="noopener" style="color:var(--accent)">전체 데이터 백업(JSON) 열기</a> · 원본 데이터는 연결된 Google 스프레드시트에도 있습니다.</p>
+      </div>
+    </section>
+
+    <!-- ============ 가져오기 ============ -->
+    <section id="tab-import" hidden>
+      <div class="card">
+        <h2>기존 아이폰 메모 가져오기</h2>
+        <p class="help" style="margin-top:0">메모 내용을 그대로 붙여넣으세요. ✅·➡️·▷·✍🏻 줄을 인식합니다. 가장 최근 메모의 ➡️ 항목이 현재 할일 목록이 됩니다.<br>
+          여러 날을 한 번에 넣을 때는 각 날짜 위에 <code>2026.11.06</code> 같은 날짜 줄을 넣으면 그 날짜로 저장됩니다. 같은 내용은 중복 저장되지 않습니다.</p>
+        <div class="row" style="margin:12px 0 8px; align-items:center">
+          <span style="font-size:14px; color:var(--muted); white-space:nowrap">날짜 줄이 없으면</span>
+          <input id="iDate" type="date" class="field" style="width:auto">
+        </div>
+        <textarea id="iText" class="field" rows="10" placeholder="𝑹𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝑻𝒐-𝒅𝒐&#10;✅ [Clustering] 공저자 검토 확인&#10;➡️ [Prediction] 공저자 검토 확인&#10;…"></textarea>
+        <div class="row" style="justify-content:flex-end; margin-top:10px">
+          <button class="btn" id="iRun">가져오기</button>
+        </div>
+        <p class="help" id="iResult"></p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<datalist id="projList"></datalist>
+
+<dialog id="taskDlg">
+  <form method="dialog" id="taskDlgForm">
+    <h3>할일 편집</h3>
+    <div class="grid">
+      <input id="dProj" class="field" list="projList" placeholder="프로젝트" autocomplete="off">
+      <input id="dTitle" class="field" placeholder="할 일" autocomplete="off">
+      <div class="duebar" id="dDueBar" style="margin-top:0">
+        <span class="lbl">마감</span>
+        <button type="button" class="chip" data-due="today">오늘</button>
+        <button type="button" class="chip" data-due="tomorrow">내일</button>
+        <button type="button" class="chip" data-due="week">이번주 안</button>
+        <input type="date" class="field due-date" aria-label="마감일 직접 선택">
+        <button type="button" class="clear" hidden aria-label="마감일 지우기">✕</button>
+      </div>
+      <div class="tmeta" id="dMeta"></div>
+    </div>
+    <div class="acts">
+      <button type="button" class="btn danger" id="dDelete">삭제</button>
+      <span class="sp"></span>
+      <button type="button" class="btn ghost" id="dCancel">취소</button>
+      <button class="btn" id="dSave">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" role="status"><span id="toastMsg"></span><button id="toastAct" hidden></button></div>
+
+<script>
+const INIT_KEY = <?!= JSON.stringify(key) ?>;
+
+/* ---------------- 상태 ---------------- */
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
+let KEY = INIT_KEY || store.get('rt.key') || '';
+if (INIT_KEY) store.set('rt.key', INIT_KEY);
+
+const S = {
+  tasks: [], records: [], today: '', url: '',
+  tab: 'today', filter: store.get('rt.filter') || '',
+  recDate: '', editRec: null, editTask: null,
+  notesDate: '', header: store.get('rt.header') !== '0',  // 날짜별 메모 사용 → 기본값: 날짜 제목 포함
+  loadedAt: 0,
+};
+
+const $ = (s) => document.querySelector(s);
+const WD = ['일', '월', '화', '수', '목', '금', '토'];
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const parseYmd = (s) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+const addDays = (s, n) => new Date(parseYmd(s) + n * 864e5).toISOString().slice(0, 10);
+const diffDays = (a, b) => Math.round((parseYmd(b) - parseYmd(a)) / 864e5);
+const koDate = (s) => { const d = new Date(parseYmd(s)); return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 (${WD[d.getUTCDay()]})`; };
+const mmdd = (s) => { const d = new Date(parseYmd(s)); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; };
+const dowOf = (s) => new Date(parseYmd(s)).getUTCDay();
+const dueFor = (kind) => kind === 'today' ? S.today : kind === 'tomorrow' ? addDays(S.today, 1)
+  : addDays(S.today, (5 - dowOf(S.today) + 7) % 7);   // 이번주 안 = 다가오는 금요일 (금요일이면 오늘)
+function dueHtml(t) {
+  if (!t.due || t.status !== 'open') return '';
+  const d = diffDays(S.today, t.due);
+  if (d < 0) return `<span class="due over">😡 ${mmdd(t.due)} 마감 · ${-d}일 지남</span>`;
+  if (d === 0) return '<span class="due soon">오늘 마감</span>';
+  if (d === 1) return '<span class="due soon">내일 마감</span>';
+  return `<span class="due">${mmdd(t.due)} (${WD[dowOf(t.due)]}) 마감</span>`;
+}
+const tagHtml = (p) => (p ? `<span class="tag">${esc(p)}</span>` : '');
+
+function call(fn, ...args) {
+  return new Promise((resolve, reject) => {
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fn](KEY, ...args);
+  });
+}
+
+/* ---------------- 토스트 ---------------- */
+let toastTimer;
+function toast(msg, actLabel, actFn) {
+  $('#toastMsg').textContent = msg;
+  const b = $('#toastAct');
+  b.hidden = !actLabel;
+  b.textContent = actLabel || '';
+  b.onclick = () => { $('#toast').classList.remove('show'); actFn && actFn(); };
+  $('#toast').classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $('#toast').classList.remove('show'), actLabel ? 5000 : 2200);
+}
+function fail(err) {
+  const m = (err && err.message) || String(err);
+  if (m.indexOf('UNAUTHORIZED') >= 0) return showGate('키가 올바르지 않습니다.');
+  toast('저장 실패: ' + m.replace(/^Exception:\s*/, ''));
+}
+
+/* ---------------- 로드 ---------------- */
+function showGate(msg) {
+  $('#app').hidden = true;
+  $('#gate').hidden = false;
+  $('#gateMsg').textContent = msg || '';
+  $('#gateKey').value = '';
+  $('#gateKey').focus();
+}
+
+function load(silent) {
+  if (!silent) $('#refreshBtn').classList.add('spin');
+  return call('apiLoad').then((d) => {
+    const dayChanged = S.today && S.today !== d.today;
+    Object.assign(S, d);
+    S.loadedAt = Date.now();
+    if (!S.recDate || dayChanged) S.recDate = S.today;
+    if (!S.notesDate || dayChanged) S.notesDate = S.today;
+    if (!$('#iDate').value) $('#iDate').value = S.today;
+    $('#gate').hidden = true;
+    $('#app').hidden = false;
+    $('#loading').hidden = true;
+    showTab(S.tab);
+    renderAll();
+  }).catch((err) => {
+    const m = (err && err.message) || String(err);
+    if (m.indexOf('UNAUTHORIZED') >= 0) showGate(KEY ? '키가 올바르지 않습니다.' : '');
+    else { $('#loading').textContent = '불러오기 실패: ' + m; toast('불러오기 실패'); }
+  }).finally(() => $('#refreshBtn').classList.remove('spin'));
+}
+
+/* ---------------- 렌더 ---------------- */
+function renderAll() {
+  $('#todayLabel').textContent = koDate(S.today);
+  renderProjects();
+  renderTasks();
+  tDue.sync();
+  renderRecords();
+  if (S.tab === 'notes') renderNotes();
+}
+
+function projectsByRecency() {
+  const seen = new Map();
+  const items = [...S.tasks, ...S.records].filter((x) => x.project);
+  items.sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || '')));
+  items.forEach((x) => { if (!seen.has(x.project)) seen.set(x.project, 1); });
+  return [...seen.keys()];
+}
+
+function renderProjects() {
+  $('#projList').innerHTML = projectsByRecency().map((p) => `<option value="${esc(p)}">`).join('');
+}
+
+function visibleTasks() {
+  return S.tasks.filter((t) => t.status === 'open' || (t.status === 'done' && t.done === S.today));
+}
+
+function renderTasks() {
+  const vis = visibleTasks();
+  const open = vis.filter((t) => t.status === 'open');
+  const done = vis.filter((t) => t.status === 'done');
+  $('#taskCount').textContent = `${open.length}개 남음 · 오늘 ${done.length}개 완료`;
+
+  const projs = [];
+  vis.forEach((t) => { if (t.project && projs.indexOf(t.project) < 0) projs.push(t.project); });
+  if (S.filter && projs.indexOf(S.filter) < 0) S.filter = '';
+  const cnt = (p) => open.filter((t) => t.project === p).length;
+  $('#chips').innerHTML = projs.length < 2 ? '' :
+    `<button class="chip${S.filter ? '' : ' on'}" data-p="">전체 ${open.length}</button>` +
+    projs.map((p) => `<button class="chip${S.filter === p ? ' on' : ''}" data-p="${esc(p)}">${esc(p)} ${cnt(p)}</button>`).join('');
+
+  const f = (t) => !S.filter || t.project === S.filter;
+  const row = (t) => {
+    const age = t.status === 'open' ? diffDays(t.created, S.today) : 0;
+    return `<li class="task${t.status === 'done' ? ' done' : ''}" data-id="${esc(t.id)}">
+      <button class="check" data-act="toggle" aria-label="${t.status === 'done' ? '완료 취소' : '완료'}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      </button>
+      <div class="tbody" data-act="edit">
+        <div class="ttitle">${tagHtml(t.project)}${esc(t.title)}</div>
+        ${(t.status === 'open' && t.due) || age > 0 ? `<div class="tmeta">${dueHtml(t)}${age > 0 ? `➡️ ${mmdd(t.created)}부터 · ${age}일째` : ''}</div>` : ''}
+      </div>
+    </li>`;
+  };
+  // 마감 임박 순 (마감 없는 것은 뒤로, 같으면 추가한 순서)
+  const o = open.filter(f).map((t, i) => [t, i])
+    .sort((a, b) => (a[0].due || '9999').localeCompare(b[0].due || '9999') || a[1] - b[1]).map((x) => x[0]);
+  const d = done.filter(f);
+  let html = o.map(row).join('');
+  if (!o.length) html = `<li class="empty">${S.filter ? '이 프로젝트에 남은 할일이 없습니다.' : '남은 할일이 없습니다. 🎉'}</li>`;
+  if (d.length) html += `<li class="divider">오늘 완료</li>` + d.map(row).join('');
+  $('#taskList').innerHTML = html;
+}
+
+function renderRecords() {
+  $('#rDate').value = S.recDate;
+  const list = S.records.filter((r) => r.date === S.recDate);
+  $('#recListLabel').textContent = (S.recDate === S.today ? '오늘' : koDate(S.recDate)) + ` 기록 ${list.length}개`;
+  $('#recList').innerHTML = list.length ? list.map((r) => `
+    <li class="rec${S.editRec === r.id ? ' editing' : ''}" data-id="${esc(r.id)}">
+      ${r.content ? `<div class="c">▷ ${tagHtml(r.project)}${esc(r.content)}</div>` : ''}
+      ${r.next.split('\n').filter(Boolean).map((x) => `<div class="n">✍🏻 ${esc(x)}</div>`).join('')}
+      <button type="button" class="btn ghost sm addn" data-act="addnext">+ ✍🏻</button>
+    </li>`).join('') : '<li class="empty">아직 기록이 없습니다.</li>';
+  const editing = !!S.editRec;
+  $('#rDelete').hidden = !editing;
+  $('#rCancel').hidden = !editing;
+  $('#rSave').textContent = editing ? '수정 저장' : '기록 저장';
+}
+
+function scUrl() {
+  return `${S.url}?api=notes&key=${encodeURIComponent(KEY)}${S.header ? '&header=1' : ''}`;
+}
+
+let notesReq = 0;
+function renderNotes() {
+  $('#nDate').value = S.notesDate;
+  $('#nHeader').checked = S.header;
+  $('#scUrl').value = scUrl();
+  $('#backupLink').href = `${S.url}?api=backup&key=${encodeURIComponent(KEY)}`;
+  const my = ++notesReq;
+  $('#notePre').textContent = '불러오는 중…';
+  call('apiNotes', S.notesDate, S.header).then((txt) => {
+    if (my !== notesReq) return;
+    $('#notePre').textContent = txt || '(이 날짜에는 넘길 내용이 없습니다)';
+  }).catch((e) => { if (my === notesReq) $('#notePre').textContent = '불러오기 실패: ' + e.message; });
+}
+
+function showTab(tab) {
+  S.tab = tab;
+  document.querySelectorAll('nav.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
+  ['today', 'notes', 'import'].forEach((t) => { $('#tab-' + t).hidden = t !== tab; });
+}
+
+/* ---------------- 마감일 선택 ---------------- */
+function dueBar(sel) {
+  const bar = $(sel), input = bar.querySelector('input'), clear = bar.querySelector('.clear');
+  const sync = () => {
+    bar.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', !!input.value && dueFor(c.dataset.due) === input.value));
+    input.classList.toggle('on', !!input.value);
+    clear.hidden = !input.value;
+  };
+  bar.addEventListener('click', (e) => {
+    const c = e.target.closest('.chip');
+    if (c) { const v = dueFor(c.dataset.due); input.value = input.value === v ? '' : v; sync(); }
+    if (e.target === clear) { input.value = ''; sync(); }
+  });
+  input.addEventListener('change', sync);
+  return { get: () => input.value, set: (v) => { input.value = v || ''; sync(); }, sync };
+}
+const tDue = dueBar('#tDueBar');
+const dDue = dueBar('#dDueBar');
+
+/* ---------------- 할일 동작 ---------------- */
+function saveTask(t, patch) {
+  const prev = Object.assign({}, t);
+  Object.assign(t, patch);
+  renderAll();
+  return call('apiSaveTask', Object.assign({ id: t.id }, patch))
+    .then((srv) => { Object.assign(t, srv); renderTasks(); return srv; })
+    .catch((err) => { Object.assign(t, prev); renderAll(); fail(err); throw err; });
+}
+
+function addTask(project, title, due) {
+  const m = title.match(/^\[([^\]]+)\]\s*(.+)$/);
+  if (m && !project) { project = m[1].trim(); title = m[2].trim(); }
+  const t = { id: uid(), project, title, status: 'open', created: S.today, done: '', due: due || '', updated: new Date().toISOString() };
+  S.tasks.push(t);
+  renderAll();
+  return call('apiSaveTask', t)
+    .then((srv) => { Object.assign(t, srv); })
+    .catch((err) => { S.tasks.splice(S.tasks.indexOf(t), 1); renderAll(); fail(err); });
+}
+
+function deleteTask(t) {
+  const prev = { status: t.status, done: t.done };
+  saveTask(t, { status: 'deleted' }).then(() => {
+    toast('삭제했습니다', '되돌리기', () => saveTask(t, prev).catch(() => {}));
+  }).catch(() => {});
+}
+
+$('#taskForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const title = $('#tTitle').value.trim();
+  const project = $('#tProj').value.trim();
+  if (!title) return $('#tTitle').focus();
+  addTask(project, title, tDue.get());
+  store.set('rt.lastProj', project);
+  $('#tTitle').value = '';
+  tDue.set('');
+  $('#tTitle').focus();
+});
+
+$('#chips').addEventListener('click', (e) => {
+  const b = e.target.closest('.chip');
+  if (!b) return;
+  S.filter = b.dataset.p;
+  store.set('rt.filter', S.filter);
+  if (S.filter) $('#tProj').value = S.filter;
+  renderTasks();
+});
+
+$('#taskList').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]');
+  const li = e.target.closest('li[data-id]');
+  if (!el || !li) return;
+  const t = S.tasks.find((x) => x.id === li.dataset.id);
+  if (!t) return;
+  if (el.dataset.act === 'toggle') {
+    saveTask(t, t.status === 'done' ? { status: 'open', done: '' } : { status: 'done', done: S.today }).catch(() => {});
+  } else {
+    S.editTask = t.id;
+    $('#dProj').value = t.project;
+    $('#dTitle').value = t.title;
+    dDue.set(t.due);
+    $('#dMeta').textContent = `${mmdd(t.created)} 생성` + (t.done ? ` · ${mmdd(t.done)} 완료` : '');
+    $('#taskDlg').showModal();
+  }
+});
+
+$('#taskDlgForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const t = S.tasks.find((x) => x.id === S.editTask);
+  const title = $('#dTitle').value.trim();
+  if (!t || !title) return;
+  $('#taskDlg').close();
+  saveTask(t, { project: $('#dProj').value.trim(), title, due: dDue.get() }).catch(() => {});
+});
+$('#dCancel').addEventListener('click', () => $('#taskDlg').close());
+$('#dDelete').addEventListener('click', () => {
+  const t = S.tasks.find((x) => x.id === S.editTask);
+  $('#taskDlg').close();
+  if (t) deleteTask(t);
+});
+
+/* ---------------- 분석 기록 저장 ---------------- */
+function saveRecord(r, patch) {
+  const prev = Object.assign({}, r);
+  Object.assign(r, patch);
+  renderAll();
+  return call('apiSaveRecord', Object.assign({ id: r.id }, patch))
+    .then((srv) => { Object.assign(r, srv); })
+    .catch((err) => { Object.assign(r, prev); renderAll(); fail(err); throw err; });
+}
+
+/* ---------------- 분석 기록 ---------------- */
+// ✍🏻 입력칸: 항목마다 한 칸, Enter = 다음 ✍🏻 추가
+function growNext(ta) { ta.style.height = 'auto'; if (ta.scrollHeight) ta.style.height = ta.scrollHeight + 2 + 'px'; }
+function addNextItem(value, focus, after) {
+  const row = document.createElement('div');
+  row.className = 'nextrow';
+  row.innerHTML = '<span class="mk">✍🏻</span><textarea class="field" rows="1" enterkeyhint="next"></textarea><button type="button" class="rm" aria-label="이 항목 삭제">✕</button>';
+  const ta = row.querySelector('textarea');
+  ta.value = value || '';
+  if (after) after.after(row); else $('#rNexts').appendChild(row);
+  growNext(ta);
+  if (focus) ta.focus();
+  return ta;
+}
+function getNexts() {
+  return [...document.querySelectorAll('#rNexts textarea')]
+    .map((t) => t.value.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+}
+function setNexts(text) {
+  $('#rNexts').innerHTML = '';
+  const items = String(text || '').split('\n').filter(Boolean);
+  (items.length ? items : ['']).forEach((x) => addNextItem(x));
+}
+$('#rAddNext').addEventListener('click', () => addNextItem('', true));
+$('#rNexts').addEventListener('input', (e) => { if (e.target.tagName === 'TEXTAREA') growNext(e.target); });
+$('#rNexts').addEventListener('keydown', (e) => {
+  if (e.target.tagName !== 'TEXTAREA' || e.key !== 'Enter' || e.shiftKey || e.isComposing || e.keyCode === 229) return;
+  e.preventDefault();
+  addNextItem('', true, e.target.closest('.nextrow'));
+});
+$('#rNexts').addEventListener('click', (e) => {
+  if (!e.target.classList.contains('rm')) return;
+  e.target.closest('.nextrow').remove();
+  if (!$('#rNexts').children.length) addNextItem('');
+});
+
+function resetRecForm() {
+  S.editRec = null;
+  $('#rContent').value = '';
+  setNexts('');
+  renderRecords();
+}
+setNexts('');
+
+$('#rDate').addEventListener('change', () => {
+  if (!$('#rDate').value) return;
+  S.recDate = $('#rDate').value;
+  if (S.editRec) resetRecForm(); else renderRecords();
+});
+
+$('#recForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const data = {
+    date: $('#rDate').value || S.today,
+    project: $('#rProj').value.trim(),
+    content: $('#rContent').value.trim(),
+    next: getNexts(),
+  };
+  if (!data.content && !data.next) return $('#rContent').focus();
+  if (S.editRec) {
+    const r = S.records.find((x) => x.id === S.editRec);
+    resetRecForm();
+    if (r) saveRecord(r, data).catch(() => {});
+    return;
+  }
+  const r = Object.assign({ id: uid(), nextDone: '', deleted: '', updated: new Date().toISOString() }, data);
+  S.records.push(r);
+  resetRecForm();
+  renderAll();
+  call('apiSaveRecord', r)
+    .then((srv) => { Object.assign(r, srv); toast('기록했습니다'); })
+    .catch((err) => { S.records.splice(S.records.indexOf(r), 1); renderAll(); fail(err); });
+});
+
+$('#recList').addEventListener('click', (e) => {
+  const li = e.target.closest('li[data-id]');
+  if (!li) return;
+  const r = S.records.find((x) => x.id === li.dataset.id);
+  if (!r) return;
+  S.editRec = r.id;
+  $('#rProj').value = r.project;
+  $('#rContent').value = r.content;
+  setNexts(r.next);
+  renderRecords();
+  if (e.target.closest('[data-act=addnext]')) {
+    // 기록 아래 '+ ✍🏻' : 빈 ✍🏻 칸을 하나 더 열어 바로 입력
+    const rows = $('#rNexts').querySelectorAll('textarea');
+    const lastEmpty = rows.length && !rows[rows.length - 1].value;
+    (lastEmpty ? rows[rows.length - 1] : addNextItem('')).focus();
+    $('#recForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } else $('#rContent').focus();
+});
+
+$('#rCancel').addEventListener('click', resetRecForm);
+$('#rDelete').addEventListener('click', () => {
+  const r = S.records.find((x) => x.id === S.editRec);
+  resetRecForm();
+  if (!r) return;
+  S.records.splice(S.records.indexOf(r), 1);
+  renderAll();
+  call('apiSaveRecord', { id: r.id, deleted: true })
+    .then(() => toast('기록을 삭제했습니다', '되돌리기', () => {
+      S.records.push(r); renderAll();
+      call('apiSaveRecord', { id: r.id, deleted: false }).catch(fail);
+    }))
+    .catch((err) => { S.records.push(r); renderAll(); fail(err); });
+});
+
+/* ---------------- 노트 탭 ---------------- */
+$('#nDate').addEventListener('change', () => { if ($('#nDate').value) { S.notesDate = $('#nDate').value; renderNotes(); } });
+$('#nPrev').addEventListener('click', () => { S.notesDate = addDays(S.notesDate, -1); renderNotes(); });
+$('#nNext').addEventListener('click', () => { S.notesDate = addDays(S.notesDate, 1); renderNotes(); });
+$('#nHeader').addEventListener('change', () => { S.header = $('#nHeader').checked; store.set('rt.header', S.header ? '1' : '0'); renderNotes(); });
+$('#nCopy').addEventListener('click', () => copyText($('#notePre').textContent));
+$('#scCopy').addEventListener('click', () => copyText($('#scUrl').value));
+
+function copyText(text) {
+  const legacy = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, text.length);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    ta.remove();
+    toast(ok ? '복사했습니다' : '복사하지 못했습니다. 길게 눌러 직접 복사하세요.');
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => toast('복사했습니다'), legacy);
+  } else legacy();
+}
+
+/* ---------------- 가져오기 ---------------- */
+$('#iRun').addEventListener('click', () => {
+  const text = $('#iText').value;
+  if (!text.trim()) return $('#iText').focus();
+  const btn = $('#iRun');
+  btn.disabled = true; btn.textContent = '가져오는 중…';
+  call('apiImport', text, $('#iDate').value || S.today).then((r) => {
+    $('#iResult').textContent = r.days
+      ? `${r.days}일치 처리 — 할일 ${r.added}개 추가, ${r.completed}개 완료 처리, 분석기록 ${r.records}개 추가, 중복 ${r.skipped}개 건너뜀`
+      : '인식된 항목이 없습니다. ✅·➡️·▷·✍🏻 로 시작하는 줄이 있는지 확인하세요.';
+    if (r.days) { $('#iText').value = ''; load(true); }
+  }).catch(fail).finally(() => { btn.disabled = false; btn.textContent = '가져오기'; });
+});
+
+/* ---------------- 공통 ---------------- */
+document.querySelectorAll('nav.tabs button').forEach((b) => b.addEventListener('click', () => {
+  showTab(b.dataset.tab);
+  if (b.dataset.tab === 'notes') renderNotes();
+}));
+$('#refreshBtn').addEventListener('click', () => load());
+$('#gateForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  KEY = $('#gateKey').value.trim();
+  if (!KEY) return;
+  store.set('rt.key', KEY);
+  $('#gateMsg').textContent = '확인 중…';
+  load();
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && KEY && S.loadedAt && Date.now() - S.loadedAt > 30000) load(true);
+});
+
+$('#tProj').value = store.get('rt.lastProj') || '';
+if (KEY) { $('#app').hidden = false; load(); } else { $('#loading').hidden = true; showGate(); }
+</script>
+</body>
+</html>
