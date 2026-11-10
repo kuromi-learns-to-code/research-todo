@@ -89,6 +89,13 @@ ul.list { list-style: none; margin: 0; padding: 0; }
 .sres.done .b { color: var(--muted); }
 mark { background: #ffe08a; color: #4a3329; border-radius: 3px; padding: 0 1px; }
 .stp { display: inline-block; font-size: 12px; color: var(--muted); margin-right: 8px; font-weight: 600; }
+.tsteps { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.tstep { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; }
+.tstep .scheck { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; border: 1.5px solid var(--muted); background: transparent; padding: 0; cursor: pointer; display: grid; place-items: center; }
+.tstep .scheck svg { width: 11px; height: 11px; opacity: 0; }
+.tstep.done .scheck { background: var(--accent); border-color: var(--accent); }
+.tstep.done .scheck svg { opacity: 1; color: var(--accent-text); }
+.tstep.done span { color: var(--muted); text-decoration: line-through; }
 .steps { display: grid; gap: 4px; }
 .step { display: flex; align-items: center; gap: 8px; }
 .step .check { width: 20px; height: 20px; margin: 0; border-width: 2px; }
@@ -463,9 +470,13 @@ function stepsOf(t) {
   if (typeof a === 'string') { try { a = a ? JSON.parse(a) : []; } catch (e) { a = []; } }
   return Array.isArray(a) ? a.filter((x) => x && x.t) : [];
 }
-function stepsHtml(t) {
+function stepListHtml(t) {
   const st = stepsOf(t);
-  return st.length ? `<span class="stp">☑ ${st.filter((x) => x.d).length}/${st.length}</span>` : '';
+  if (!st.length) return '';
+  return `<ul class="tsteps">${st.map((x, i) => `<li class="tstep${x.d ? ' done' : ''}">
+      <button type="button" class="scheck" data-act="steptoggle" data-i="${i}" aria-label="${x.d ? '단계 체크 해제' : '단계 체크'}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      </button><span>${esc(x.t)}</span></li>`).join('')}</ul>`;
 }
 function repHtml(t) {
   if (!t.repeat || t.status !== 'open') return '';
@@ -622,7 +633,8 @@ function renderTasks() {
       </button>
       <div class="tbody" data-act="edit">
         <div class="ttitle">${tagHtml(t.project)}${esc(t.title)}</div>
-        ${(t.status === 'open' && (t.due || t.remind || t.repeat)) || age > 0 || stepsOf(t).length ? `<div class="tmeta">${stepsHtml(t)}${dueHtml(t)}${repHtml(t)}${remHtml(t)}${age > 0 ? `➡️ ${mmdd(t.created)}부터 · ${age}일째` : ''}</div>` : ''}
+        ${(t.status === 'open' && (t.due || t.remind || t.repeat)) || age > 0 ? `<div class="tmeta">${dueHtml(t)}${repHtml(t)}${remHtml(t)}${age > 0 ? `➡️ ${mmdd(t.created)}부터 · ${age}일째` : ''}</div>` : ''}
+        ${stepListHtml(t)}
       </div>
     </li>`;
   };
@@ -913,6 +925,12 @@ $('#taskList').addEventListener('click', (e) => {
   if (!el || !li) return;
   const t = S.tasks.find((x) => x.id === li.dataset.id);
   if (!t) return;
+  if (el.dataset.act === 'steptoggle') {   // 목록에서 바로 단계 체크 (즉시 저장)
+    const st = stepsOf(t).map((x) => ({ t: x.t, d: !!x.d }));
+    const i = Number(el.dataset.i);
+    if (st[i]) { st[i].d = !st[i].d; saveTask(t, { steps: st }).catch(() => {}); }
+    return;
+  }
   if (el.dataset.act === 'toggle') {
     saveTask(t, t.status === 'done' ? { status: 'open', done: '' } : { status: 'done', done: S.today }).catch(() => {});
   } else openTaskDialog(t);
