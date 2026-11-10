@@ -47,7 +47,7 @@ header.top .sub { color: var(--muted); font-size: 13px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 nav.tabs { display: flex; gap: 4px; background: var(--tag-bg); padding: 4px; border-radius: 12px; margin-bottom: 16px; }
-nav.tabs button { flex: 1; border: 0; background: transparent; padding: 8px 0; border-radius: 9px; cursor: pointer; color: var(--muted); font-weight: 500; }
+nav.tabs button { flex: 1; min-width: 0; word-break: keep-all; border: 0; background: transparent; padding: 8px 4px; font-size: 14px; line-height: 1.25; border-radius: 9px; cursor: pointer; color: var(--muted); font-weight: 500; }
 nav.tabs button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 16px; box-shadow: var(--shadow); }
@@ -186,15 +186,15 @@ dialog .acts .sp { flex: 1; }
     </header>
 
     <nav class="tabs">
-      <button data-tab="today" class="on">오늘</button>
-      <button data-tab="notes">노트</button>
-      <button data-tab="import">검색 및 가져오기</button>
+      <button data-tab="todo" class="on">Research To‑do</button>
+      <button data-tab="rec">Analysis Records</button>
+      <button data-tab="etc">ETC</button>
     </nav>
 
     <div id="loading" class="loading">불러오는 중…</div>
 
-    <!-- ============ 오늘 ============ -->
-    <section id="tab-today" hidden>
+    <!-- ============ Research To-do ============ -->
+    <section id="tab-todo" hidden>
       <div class="card">
         <h2>Research To-do <span class="count" id="taskCount"></span></h2>
         <form id="taskForm" class="row">
@@ -221,7 +221,10 @@ dialog .acts .sp { flex: 1; }
         <div id="chips" class="chips"></div>
         <ul id="taskList" class="list"></ul>
       </div>
+    </section>
 
+    <!-- ============ Analysis Records ============ -->
+    <section id="tab-rec" hidden>
       <div class="card">
         <h2>Analysis Records</h2>
         <form id="recForm" class="rec-form">
@@ -246,23 +249,37 @@ dialog .acts .sp { flex: 1; }
       </div>
     </section>
 
-    <!-- ============ 노트 ============ -->
-    <section id="tab-notes" hidden>
+    <!-- ============ ETC: 검색 · 가져오기 · 내보내기 · 기기 설정 ============ -->
+    <section id="tab-etc" hidden>
       <div class="card">
-        <h2>아이폰 메모로 넘어갈 내용</h2>
-        <div class="datebar">
-          <button class="icon-btn" id="nPrev" aria-label="이전 날">‹</button>
-          <input id="nDate" type="date" class="field">
-          <button class="icon-btn" id="nNext" aria-label="다음 날">›</button>
-          <button class="btn ghost" id="nCopy">복사</button>
+        <h2>검색 <span class="count" id="qInfo"></span></h2>
+        <input id="qInput" type="search" class="field" placeholder="할일·분석 기록·프로젝트 검색 (띄어쓰기로 여러 단어)" autocomplete="off" enterkeyhint="search">
+        <div class="chips" id="qKind">
+          <button type="button" class="chip on" data-k="">전체</button>
+          <button type="button" class="chip" data-k="task">할일</button>
+          <button type="button" class="chip" data-k="rec">분석 기록</button>
         </div>
-        <pre class="note" id="notePre"></pre>
-        <label class="inline"><input type="checkbox" id="nHeader"> 첫 줄에 날짜 제목 넣기 (메모 제목이 날짜가 됨)</label>
+        <ul id="qList" class="list"></ul>
       </div>
 
       <div class="card">
-        <h2>아이폰 단축어 연결</h2>
-        <p class="help" style="margin-top:0">단축어의 <b>URL</b> 동작에 아래 주소를 넣고 → <b>URL의 콘텐츠 가져오기</b> → <b>메모 생성</b>(또는 메모에 추가)로 연결하세요. 위의 ‘날짜 제목’ 체크 여부가 주소에 반영됩니다.</p>
+        <h2>기존 아이폰 메모 가져오기</h2>
+        <p class="help" style="margin-top:0">메모 내용을 그대로 붙여넣으세요. ✅·➡️·▷·✍🏻 줄을 인식합니다. 가장 최근 메모의 ➡️ 항목이 현재 할일 목록이 됩니다.<br>
+          여러 날을 한 번에 넣을 때는 각 날짜 위에 <code>2026.11.06</code> 같은 날짜 줄을 넣으면 그 날짜로 저장됩니다. 같은 내용은 중복 저장되지 않습니다.</p>
+        <div class="row" style="margin:12px 0 8px; align-items:center">
+          <span style="font-size:14px; color:var(--muted); white-space:nowrap">날짜 줄이 없으면</span>
+          <input id="iDate" type="date" class="field" style="width:auto">
+        </div>
+        <textarea id="iText" class="field" rows="10" placeholder="𝑹𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝑻𝒐-𝒅𝒐&#10;✅ [Clustering] 공저자 검토 확인&#10;➡️ [Prediction] 공저자 검토 확인&#10;…"></textarea>
+        <div class="row" style="justify-content:flex-end; margin-top:10px">
+          <button class="btn" id="iRun">가져오기</button>
+        </div>
+        <p class="help" id="iResult"></p>
+      </div>
+
+      <div class="card">
+        <h2>아이폰 메모 내보내기 · 백업</h2>
+        <p class="help" style="margin-top:0">단축어의 <b>URL</b> 동작에 아래 주소를 넣고 → <b>URL의 콘텐츠 가져오기</b> → <b>메모 생성</b>로 연결하세요. 첫 줄이 날짜 제목(예: 2026. 11. 09. 月曜日)이 됩니다.</p>
         <div class="urlbox" style="margin-top:10px">
           <input id="scUrl" class="field" readonly>
           <button class="btn ghost" id="scCopy">복사</button>
@@ -297,35 +314,6 @@ dialog .acts .sp { flex: 1; }
           <div><div class="t">연결 해제</div><div class="s">이 기기에 저장된 URL·키를 지웁니다 (데이터는 그대로).</div></div>
           <button class="btn danger sm" id="logout">해제</button>
         </div>
-      </div>
-    </section>
-
-    <!-- ============ 검색 및 가져오기 ============ -->
-    <section id="tab-import" hidden>
-      <div class="card">
-        <h2>검색 <span class="count" id="qInfo"></span></h2>
-        <input id="qInput" type="search" class="field" placeholder="할일·분석 기록·프로젝트 검색 (띄어쓰기로 여러 단어)" autocomplete="off" enterkeyhint="search">
-        <div class="chips" id="qKind">
-          <button type="button" class="chip on" data-k="">전체</button>
-          <button type="button" class="chip" data-k="task">할일</button>
-          <button type="button" class="chip" data-k="rec">분석 기록</button>
-        </div>
-        <ul id="qList" class="list"></ul>
-      </div>
-
-      <div class="card">
-        <h2>기존 아이폰 메모 가져오기</h2>
-        <p class="help" style="margin-top:0">메모 내용을 그대로 붙여넣으세요. ✅·➡️·▷·✍🏻 줄을 인식합니다. 가장 최근 메모의 ➡️ 항목이 현재 할일 목록이 됩니다.<br>
-          여러 날을 한 번에 넣을 때는 각 날짜 위에 <code>2026.11.06</code> 같은 날짜 줄을 넣으면 그 날짜로 저장됩니다. 같은 내용은 중복 저장되지 않습니다.</p>
-        <div class="row" style="margin:12px 0 8px; align-items:center">
-          <span style="font-size:14px; color:var(--muted); white-space:nowrap">날짜 줄이 없으면</span>
-          <input id="iDate" type="date" class="field" style="width:auto">
-        </div>
-        <textarea id="iText" class="field" rows="10" placeholder="𝑹𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝑻𝒐-𝒅𝒐&#10;✅ [Clustering] 공저자 검토 확인&#10;➡️ [Prediction] 공저자 검토 확인&#10;…"></textarea>
-        <div class="row" style="justify-content:flex-end; margin-top:10px">
-          <button class="btn" id="iRun">가져오기</button>
-        </div>
-        <p class="help" id="iResult"></p>
       </div>
     </section>
   </div>
@@ -394,9 +382,8 @@ function readSetupHash(hash) {
 
 const S = {
   tasks: [], records: [], today: '', url: '',
-  tab: 'today', filter: store.get('rt.filter') || '',
+  tab: ['todo', 'rec', 'etc'].indexOf(store.get('rt.tab')) >= 0 ? store.get('rt.tab') : 'todo', filter: store.get('rt.filter') || '',
   recDate: '', editRec: null, editTask: null,
-  notesDate: '', header: store.get('rt.header') !== '0',  // 날짜별 메모 사용 → 기본값: 날짜 제목 포함
   loadedAt: 0,
   doneOpen: store.get('rt.doneOpen2') === '1', doneLimit: 20,   // 완료됨 목록 (기본 접힘, 펼침 상태 기억, 20개씩 더 보기)
   pastOpen: store.get('rt.pastOpen2') === '1', pastLimit: 20,   // 지난 분석 기록 (기본 접힘)
@@ -508,7 +495,6 @@ function load(silent) {
     Object.assign(S, d);
     S.loadedAt = Date.now();
     if (!S.recDate || dayChanged) S.recDate = S.today;
-    if (!S.notesDate || dayChanged) S.notesDate = S.today;
     if (!$('#iDate').value) $('#iDate').value = S.today;
     $('#gate').hidden = true;
     $('#app').hidden = false;
@@ -531,8 +517,7 @@ function renderAll() {
   tDue.sync();
   tRem.sync();
   renderRecords();
-  if (S.tab === 'notes') renderNotes();
-  if (S.tab === 'import') renderSearch();
+  if (S.tab === 'etc') renderEtc();
 }
 
 function projectsByRecency() {
@@ -593,13 +578,16 @@ function renderTasks() {
   const o = open.filter(f).map((t, i) => [t, i])
     .sort((a, b) => (a[0].due || '9999').localeCompare(b[0].due || '9999') || a[1] - b[1]).map((x) => x[0]);
   const d = done.filter(f);
+  const dToday = d.filter((t) => t.done === S.today);     // 오늘 완료: 항상 표시
+  const dPast = d.filter((t) => t.done !== S.today);      // 이전 완료: 접기/펼치기 (기본 접힘)
   let html = o.map(row).join('');
   if (!o.length) html = `<li class="empty">${S.filter ? '이 프로젝트에 남은 할일이 없습니다.' : '남은 할일이 없습니다. 🎉'}</li>`;
-  if (d.length) {
-    html += `<li><button type="button" class="fold" data-act="donefold">${S.doneOpen ? '▾' : '▸'} 완료됨 <span class="cnt">${d.length}</span></button></li>`;
+  if (dToday.length) html += `<li class="divider">오늘 완료</li>` + dToday.map(row).join('');
+  if (dPast.length) {
+    html += `<li><button type="button" class="fold" data-act="donefold">${S.doneOpen ? '▾' : '▸'} 완료됨 <span class="cnt">${dPast.length}</span></button></li>`;
     if (S.doneOpen) {
-      html += grouped(d.slice(0, S.doneLimit), (t) => t.done, row);
-      if (d.length > S.doneLimit) html += `<li class="more"><button type="button" class="btn ghost sm" data-act="donemore">더 보기 (${d.length - S.doneLimit}개 더)</button></li>`;
+      html += grouped(dPast.slice(0, S.doneLimit), (t) => t.done, row);
+      if (dPast.length > S.doneLimit) html += `<li class="more"><button type="button" class="btn ghost sm" data-act="donemore">더 보기 (${dPast.length - S.doneLimit}개 더)</button></li>`;
     }
   }
   $('#taskList').innerHTML = html;
@@ -687,30 +675,23 @@ function renderPast() {
 }
 
 function scUrl() {
-  return `${S.url}?api=notes&key=${encodeURIComponent(KEY)}${S.header ? '&header=1' : ''}`;
+  return `${S.url}?api=notes&key=${encodeURIComponent(KEY)}&header=1`;
 }
 
-let notesReq = 0;
-function renderNotes() {
-  $('#nDate').value = S.notesDate;
-  $('#nHeader').checked = S.header;
+function renderEtc() {
   $('#scUrl').value = scUrl();
   $('#backupLink').href = `${S.url}?api=backup&key=${encodeURIComponent(KEY)}`;
   $('#linkUrl').value = `${location.origin}${location.pathname}#api=${encodeURIComponent(API)}&key=${encodeURIComponent(KEY)}`;
   renderNotifState();
   updateBadge();
-  const my = ++notesReq;
-  $('#notePre').textContent = '불러오는 중…';
-  call('apiNotes', S.notesDate, S.header).then((txt) => {
-    if (my !== notesReq) return;
-    $('#notePre').textContent = txt || '(이 날짜에는 넘길 내용이 없습니다)';
-  }).catch((e) => { if (my === notesReq) $('#notePre').textContent = '불러오기 실패: ' + e.message; });
+  renderSearch();
 }
 
 function showTab(tab) {
   S.tab = tab;
   document.querySelectorAll('nav.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
-  ['today', 'notes', 'import'].forEach((t) => { $('#tab-' + t).hidden = t !== tab; });
+  ['todo', 'rec', 'etc'].forEach((t) => { $('#tab-' + t).hidden = t !== tab; });
+  store.set('rt.tab', tab);
 }
 
 /* ---------------- 마감일 선택 ---------------- */
@@ -987,11 +968,6 @@ $('#rDelete').addEventListener('click', () => {
 });
 
 /* ---------------- 노트 탭 ---------------- */
-$('#nDate').addEventListener('change', () => { if ($('#nDate').value) { S.notesDate = $('#nDate').value; renderNotes(); } });
-$('#nPrev').addEventListener('click', () => { S.notesDate = addDays(S.notesDate, -1); renderNotes(); });
-$('#nNext').addEventListener('click', () => { S.notesDate = addDays(S.notesDate, 1); renderNotes(); });
-$('#nHeader').addEventListener('change', () => { S.header = $('#nHeader').checked; store.set('rt.header', S.header ? '1' : '0'); renderNotes(); });
-$('#nCopy').addEventListener('click', () => copyText($('#notePre').textContent));
 $('#scCopy').addEventListener('click', () => copyText($('#scUrl').value));
 $('#linkCopy').addEventListener('click', () => copyText($('#linkUrl').value));
 $('#notifOn').addEventListener('click', () => {
@@ -1080,7 +1056,7 @@ $('#qList').addEventListener('click', (e) => {
   } else {
     const r = S.records.find((x) => x.id === li.dataset.id);
     if (!r) return;
-    showTab('today');
+    showTab('rec');
     editRecord(r, true);
     $('#recForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
@@ -1103,8 +1079,7 @@ $('#iRun').addEventListener('click', () => {
 /* ---------------- 공통 ---------------- */
 document.querySelectorAll('nav.tabs button').forEach((b) => b.addEventListener('click', () => {
   showTab(b.dataset.tab);
-  if (b.dataset.tab === 'notes') renderNotes();
-  if (b.dataset.tab === 'import') { renderSearch(); if (matchMedia('(pointer: fine)').matches) $('#qInput').focus(); }
+  if (b.dataset.tab === 'etc') { renderEtc(); if (matchMedia('(pointer: fine)').matches) $('#qInput').focus(); }
 }));
 $('#refreshBtn').addEventListener('click', () => load());
 $('#gateForm').addEventListener('submit', (e) => {
