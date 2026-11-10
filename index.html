@@ -97,6 +97,13 @@ mark { background: #ffe08a; color: #4a3329; border-radius: 3px; padding: 0 1px; 
 .tstep.done .scheck svg { opacity: 1; color: var(--accent-text); }
 .tstep.done span { color: var(--muted); text-decoration: line-through; }
 .steps { display: grid; gap: 4px; }
+.step .sdue { flex: 0 0 auto; width: 132px; padding: 5px 6px; font-size: 13px; }
+.step .sdue.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.step .scal { flex: 0 0 auto; border: 1px dashed var(--line); background: transparent; border-radius: 8px; padding: 5px 7px; cursor: pointer; font-size: 13px; color: var(--muted); }
+.sdl { font-size: 12px; color: var(--muted); margin-left: 6px; font-weight: 600; white-space: nowrap; }
+.sdl.soon { color: var(--warn); }
+.sdl.over { color: var(--danger); }
+#dAutoDue { margin-top: -2px; }
 .step { display: flex; align-items: center; gap: 8px; }
 .step .check { width: 20px; height: 20px; margin: 0; border-width: 2px; }
 .step .check svg { width: 12px; height: 12px; }
@@ -362,6 +369,7 @@ dialog .acts .sp { flex: 1; }
         <input type="date" class="field due-date" aria-label="마감일 직접 선택">
         <button type="button" class="clear" hidden aria-label="마감일 지우기">✕</button>
       </div>
+      <div class="tmeta" id="dAutoDue"></div>
       <div class="duebar" id="dRemBar" style="margin-top:0">
           <span class="lbl">알림</span>
           <button type="button" class="chip" data-rem="1h">1시간 후</button>
@@ -470,13 +478,23 @@ function stepsOf(t) {
   if (typeof a === 'string') { try { a = a ? JSON.parse(a) : []; } catch (e) { a = []; } }
   return Array.isArray(a) ? a.filter((x) => x && x.t) : [];
 }
+function stepDueHtml(x) {
+  if (!x.due) return '';
+  if (x.d) return `<span class="sdl">${mmdd(x.due)}</span>`;
+  const d = diffDays(S.today, x.due);
+  if (d < 0) return `<span class="sdl over">😡 ${mmdd(x.due)}</span>`;
+  if (d === 0) return '<span class="sdl soon">오늘</span>';
+  if (d === 1) return '<span class="sdl soon">내일</span>';
+  return `<span class="sdl">~${mmdd(x.due)}</span>`;
+}
+const maxStepDue = (steps) => steps.map((x) => x.due).filter(Boolean).sort().pop() || '';
 function stepListHtml(t) {
   const st = stepsOf(t);
   if (!st.length) return '';
   return `<ul class="tsteps">${st.map((x, i) => `<li class="tstep${x.d ? ' done' : ''}">
       <button type="button" class="scheck" data-act="steptoggle" data-i="${i}" aria-label="${x.d ? '단계 체크 해제' : '단계 체크'}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
-      </button><span>${esc(x.t)}</span></li>`).join('')}</ul>`;
+      </button><span>${esc(x.t)}${stepDueHtml(x)}</span></li>`).join('')}</ul>`;
 }
 function repHtml(t) {
   if (!t.repeat || t.status !== 'open') return '';
@@ -846,9 +864,9 @@ const tRem = remBar('#tRemBar');
 const dRem = remBar('#dRemBar');
 
 /* ---------------- 할일 동작 ---------------- */
-function saveTask(t, patch) {
+function saveTask(t, patch, local) {
   const prev = Object.assign({}, t);
-  Object.assign(t, patch);
+  Object.assign(t, patch, local || {});   // local: 화면에만 미리 반영 (서버 응답으로 확정)
   renderAll();
   return call('apiSaveTask', Object.assign({ id: t.id }, patch))
     .then((srv) => { applyServerTask(t, srv); return srv; })
@@ -926,7 +944,7 @@ $('#taskList').addEventListener('click', (e) => {
   const t = S.tasks.find((x) => x.id === li.dataset.id);
   if (!t) return;
   if (el.dataset.act === 'steptoggle') {   // 목록에서 바로 단계 체크 (즉시 저장)
-    const st = stepsOf(t).map((x) => ({ t: x.t, d: !!x.d }));
+    const st = stepsOf(t).map((x) => Object.assign({ t: x.t, d: !!x.d }, x.due ? { due: x.due } : {}));
     const i = Number(el.dataset.i);
     if (st[i]) { st[i].d = !st[i].d; saveTask(t, { steps: st }).catch(() => {}); }
     return;
@@ -937,15 +955,22 @@ $('#taskList').addEventListener('click', (e) => {
 });
 
 /* ---- 딸림 할일(단계) 편집: 저장 버튼을 눌러야 반영 ---- */
+function updateAutoDue() {
+  const m = maxStepDue(S.dSteps);
+  $('#dAutoDue').textContent = !dDue.get() && m ? `마감 미입력 → 단계 중 가장 늦은 날 ${mmdd(m)} (${WD[dowOf(m)]})로 자동 설정` : '';
+}
 function renderDSteps() {
   $('#dSteps').innerHTML = S.dSteps.map((x, i) => `
     <div class="step${x.d ? ' done' : ''}" data-i="${i}">
       <button type="button" class="check" data-act="stoggle" aria-label="${x.d ? '체크 해제' : '체크'}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
       </button>
-      <input class="field" value="${esc(x.t)}" autocomplete="off" enterkeyhint="done">
+      <input class="field stxt" value="${esc(x.t)}" autocomplete="off" enterkeyhint="done">
+      ${x.due || x.showDate ? `<input type="date" class="field sdue${x.due ? ' on' : ''}" value="${esc(x.due || '')}" aria-label="단계 마감일">`
+        : '<button type="button" class="scal" data-act="sdate" aria-label="단계 마감일 넣기">📅</button>'}
       <button type="button" class="clear" data-act="sdel" aria-label="단계 삭제">✕</button>
     </div>`).join('');
+  updateAutoDue();
 }
 function addDStep() {
   const v = $('#dStepNew').value.trim();
@@ -961,13 +986,29 @@ $('#dSteps').addEventListener('click', (e) => {
   if (!b || !row) return;
   const i = Number(row.dataset.i);
   if (b.dataset.act === 'stoggle') S.dSteps[i].d = !S.dSteps[i].d;
+  if (b.dataset.act === 'sdate') {   // 📅 → 날짜 입력칸으로 바꾸고 달력 열기
+    S.dSteps[i].showDate = true;
+    renderDSteps();
+    const inp = $('#dSteps').querySelector(`.step[data-i="${i}"] .sdue`);
+    if (inp) { inp.focus(); try { inp.showPicker(); } catch (err) {} }
+    return;
+  }
   if (b.dataset.act === 'sdel') S.dSteps.splice(i, 1);
   renderDSteps();
 });
 $('#dSteps').addEventListener('input', (e) => {
   const row = e.target.closest('.step');
-  if (row && e.target.tagName === 'INPUT') S.dSteps[Number(row.dataset.i)].t = e.target.value;
+  if (!row || e.target.tagName !== 'INPUT') return;
+  const x = S.dSteps[Number(row.dataset.i)];
+  if (e.target.classList.contains('sdue')) { x.due = e.target.value; e.target.classList.toggle('on', !!x.due); updateAutoDue(); }
+  else x.t = e.target.value;
 });
+$('#dSteps').addEventListener('change', (e) => {
+  const row = e.target.closest('.step');
+  if (row && e.target.classList.contains('sdue')) { S.dSteps[Number(row.dataset.i)].due = e.target.value; updateAutoDue(); }
+});
+$('#dDueBar').addEventListener('click', () => setTimeout(updateAutoDue));
+$('#dDueBar').addEventListener('change', updateAutoDue);
 $('#dSteps').addEventListener('keydown', (e) => {   // Enter가 창 전체 저장으로 넘어가지 않게
   if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); $('#dStepNew').focus(); }
 });
@@ -977,15 +1018,18 @@ $('#dStepNew').addEventListener('keydown', (e) => {
   addDStep();
 });
 
+function cleanSteps(a) {
+  return a.map((x) => Object.assign({ t: String(x.t || '').trim(), d: !!x.d }, x.due ? { due: x.due } : {})).filter((x) => x.t);
+}
 function openTaskDialog(t) {
   S.editTask = t.id;
   $('#dProj').value = t.project;
   $('#dTitle').value = t.title;
-  dDue.set(t.due);
+  dDue.set(t.dueAuto === '1' ? '' : t.due);   // 자동 마감은 비워 두고 안내문으로 표시
   dRem.set(t.remind);
   dRep.set(t.repeat, t.until);
-  S.dSteps = stepsOf(t).map((x) => ({ t: x.t, d: !!x.d }));
-  S.dStepsOrig = JSON.stringify(S.dSteps);
+  S.dSteps = stepsOf(t).map((x) => ({ t: x.t, d: !!x.d, due: x.due || '' }));
+  S.dStepsOrig = JSON.stringify(cleanSteps(S.dSteps));
   $('#dStepNew').value = '';
   renderDSteps();
   $('#dMeta').textContent = `${mmdd(t.created)} 생성` + (t.done ? ` · ${mmdd(t.done)} 완료` : '');
@@ -1002,10 +1046,11 @@ $('#taskDlgForm').addEventListener('submit', (e) => {
   if (remind !== (t.remind || '')) delete notified[t.id];   // 시각을 바꾸면 다시 알림
   const rep = dRep.get(dDue.get() || t.due);
   addDStep();   // 입력만 하고 Enter를 안 누른 단계도 포함
-  const patch = { project: $('#dProj').value.trim(), title, due: dDue.get() || (rep.repeat ? S.today : ''), remind, repeat: rep.repeat, until: rep.until };
-  const steps = S.dSteps.map((x) => ({ t: x.t.trim(), d: x.d })).filter((x) => x.t);
+  const steps = cleanSteps(S.dSteps);
+  const auto = !dDue.get() ? maxStepDue(steps) : '';   // 마감 비움 + 단계 마감 있음 → 서버가 자동 설정
+  const patch = { project: $('#dProj').value.trim(), title, due: dDue.get() || (!auto && rep.repeat ? S.today : ''), remind, repeat: rep.repeat, until: rep.until };
   if (JSON.stringify(steps) !== S.dStepsOrig) patch.steps = steps;   // 바뀐 경우에만 전송
-  saveTask(t, patch).catch(() => {});
+  saveTask(t, patch, auto ? { due: auto, dueAuto: '1' } : null).catch(() => {});
 });
 $('#dCancel').addEventListener('click', () => $('#taskDlg').close());
 $('#dDelete').addEventListener('click', () => {
