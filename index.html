@@ -398,8 +398,8 @@ const S = {
   recDate: '', editRec: null, editTask: null,
   notesDate: '', header: store.get('rt.header') !== '0',  // 날짜별 메모 사용 → 기본값: 날짜 제목 포함
   loadedAt: 0,
-  doneOpen: store.get('rt.doneOpen') !== '0', doneLimit: 20,   // 완료됨 목록 (펼침 상태 기억, 20개씩 더 보기)
-  pastOpen: store.get('rt.pastOpen') !== '0', pastLimit: 20,   // 지난 분석 기록
+  doneOpen: store.get('rt.doneOpen2') === '1', doneLimit: 20,   // 완료됨 목록 (기본 접힘, 펼침 상태 기억, 20개씩 더 보기)
+  pastOpen: store.get('rt.pastOpen2') === '1', pastLimit: 20,   // 지난 분석 기록 (기본 접힘)
   backToToday: false,
 };
 
@@ -806,7 +806,7 @@ $('#chips').addEventListener('click', (e) => {
 $('#taskList').addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]');
   if (el && el.dataset.act === 'donefold') {
-    S.doneOpen = !S.doneOpen; S.doneLimit = 20; store.set('rt.doneOpen', S.doneOpen ? '1' : '0'); renderTasks(); return;
+    S.doneOpen = !S.doneOpen; S.doneLimit = 20; store.set('rt.doneOpen2', S.doneOpen ? '1' : '0'); renderTasks(); return;
   }
   if (el && el.dataset.act === 'donemore') { S.doneLimit += 20; renderTasks(); return; }
   const li = e.target.closest('li[data-id]');
@@ -949,7 +949,7 @@ $('#recList').addEventListener('click', (e) => {
 $('#pastList').addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]');
   if (el && el.dataset.act === 'pastfold') {
-    S.pastOpen = !S.pastOpen; S.pastLimit = 20; store.set('rt.pastOpen', S.pastOpen ? '1' : '0'); renderPast(); return;
+    S.pastOpen = !S.pastOpen; S.pastLimit = 20; store.set('rt.pastOpen2', S.pastOpen ? '1' : '0'); renderPast(); return;
   }
   if (el && el.dataset.act === 'pastmore') { S.pastLimit += 20; renderPast(); return; }
   const li = e.target.closest('li[data-id]');
