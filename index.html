@@ -88,6 +88,17 @@ ul.list { list-style: none; margin: 0; padding: 0; }
 .sres .n { color: var(--muted); }
 .sres.done .b { color: var(--muted); }
 mark { background: #ffe08a; color: #4a3329; border-radius: 3px; padding: 0 1px; }
+.stp { display: inline-block; font-size: 12px; color: var(--muted); margin-right: 8px; font-weight: 600; }
+.steps { display: grid; gap: 4px; }
+.step { display: flex; align-items: center; gap: 8px; }
+.step .check { width: 20px; height: 20px; margin: 0; border-width: 2px; }
+.step .check svg { width: 12px; height: 12px; }
+.step.done .check { background: var(--accent); border-color: var(--accent); }
+.step.done .check svg { opacity: 1; color: var(--accent-text); }
+.step .field { padding: 6px 9px; font-size: 15px; }
+.step.done .field { color: var(--muted); text-decoration: line-through; }
+.step .clear { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px; flex-shrink: 0; }
+#dStepNew { padding: 6px 9px; font-size: 15px; border-style: dashed; }
 .rpt { display: inline-block; font-size: 12px; color: var(--accent); margin-right: 8px; font-weight: 600; }
 .repbar select.field { width: auto; padding: 4px 8px; font-size: 14px; border-radius: 999px; }
 .repbar .wdays { display: inline-flex; gap: 4px; flex-wrap: wrap; }
@@ -334,6 +345,8 @@ dialog .acts .sp { flex: 1; }
     <div class="grid">
       <input id="dProj" class="field" list="projList" placeholder="프로젝트" autocomplete="off">
       <input id="dTitle" class="field" placeholder="할 일" autocomplete="off">
+      <div class="steps" id="dSteps"></div>
+      <input id="dStepNew" class="field" placeholder="+ 단계 추가 (Enter)" autocomplete="off" enterkeyhint="done">
       <div class="duebar" id="dDueBar" style="margin-top:0">
         <span class="lbl">마감</span>
         <button type="button" class="chip" data-due="today">오늘</button>
@@ -444,6 +457,15 @@ function repLabel(rule) {
     .sort((a, b) => WD_ORDER.indexOf(a) - WD_ORDER.indexOf(b)).map((d) => WD[d]).join('·');
   if (rule.indexOf('m:') === 0) return `매월 ${rule.slice(2)}일`;
   return '';
+}
+function stepsOf(t) {
+  let a = t.steps;
+  if (typeof a === 'string') { try { a = a ? JSON.parse(a) : []; } catch (e) { a = []; } }
+  return Array.isArray(a) ? a.filter((x) => x && x.t) : [];
+}
+function stepsHtml(t) {
+  const st = stepsOf(t);
+  return st.length ? `<span class="stp">☑ ${st.filter((x) => x.d).length}/${st.length}</span>` : '';
 }
 function repHtml(t) {
   if (!t.repeat || t.status !== 'open') return '';
@@ -600,7 +622,7 @@ function renderTasks() {
       </button>
       <div class="tbody" data-act="edit">
         <div class="ttitle">${tagHtml(t.project)}${esc(t.title)}</div>
-        ${(t.status === 'open' && (t.due || t.remind || t.repeat)) || age > 0 ? `<div class="tmeta">${dueHtml(t)}${repHtml(t)}${remHtml(t)}${age > 0 ? `➡️ ${mmdd(t.created)}부터 · ${age}일째` : ''}</div>` : ''}
+        ${(t.status === 'open' && (t.due || t.remind || t.repeat)) || age > 0 || stepsOf(t).length ? `<div class="tmeta">${stepsHtml(t)}${dueHtml(t)}${repHtml(t)}${remHtml(t)}${age > 0 ? `➡️ ${mmdd(t.created)}부터 · ${age}일째` : ''}</div>` : ''}
       </div>
     </li>`;
   };
@@ -826,7 +848,9 @@ function applyServerTask(t, srv) {
   const next = srv._next, removed = srv._removed;
   delete srv._next; delete srv._removed;
   const aligned = t.status === 'open' && srv.repeat && t.due && srv.due !== t.due;
+  const autoDone = srv._autoDone; delete srv._autoDone;
   Object.assign(t, srv);
+  if (autoDone) toast('☑ 모든 단계를 마쳐 할일을 완료했습니다');
   if (aligned) toast(`🔁 반복 요일에 맞춰 마감을 ${mmdd(srv.due)} (${WD[dowOf(srv.due)]})로 옮겼습니다`);
   if (next && !S.tasks.some((x) => x.id === next.id)) {
     S.tasks.push(next);
@@ -894,6 +918,47 @@ $('#taskList').addEventListener('click', (e) => {
   } else openTaskDialog(t);
 });
 
+/* ---- 딸림 할일(단계) 편집: 저장 버튼을 눌러야 반영 ---- */
+function renderDSteps() {
+  $('#dSteps').innerHTML = S.dSteps.map((x, i) => `
+    <div class="step${x.d ? ' done' : ''}" data-i="${i}">
+      <button type="button" class="check" data-act="stoggle" aria-label="${x.d ? '체크 해제' : '체크'}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      </button>
+      <input class="field" value="${esc(x.t)}" autocomplete="off" enterkeyhint="done">
+      <button type="button" class="clear" data-act="sdel" aria-label="단계 삭제">✕</button>
+    </div>`).join('');
+}
+function addDStep() {
+  const v = $('#dStepNew').value.trim();
+  if (!v) return false;
+  S.dSteps.push({ t: v, d: false });
+  $('#dStepNew').value = '';
+  renderDSteps();
+  return true;
+}
+$('#dSteps').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]');
+  const row = e.target.closest('.step');
+  if (!b || !row) return;
+  const i = Number(row.dataset.i);
+  if (b.dataset.act === 'stoggle') S.dSteps[i].d = !S.dSteps[i].d;
+  if (b.dataset.act === 'sdel') S.dSteps.splice(i, 1);
+  renderDSteps();
+});
+$('#dSteps').addEventListener('input', (e) => {
+  const row = e.target.closest('.step');
+  if (row && e.target.tagName === 'INPUT') S.dSteps[Number(row.dataset.i)].t = e.target.value;
+});
+$('#dSteps').addEventListener('keydown', (e) => {   // Enter가 창 전체 저장으로 넘어가지 않게
+  if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); $('#dStepNew').focus(); }
+});
+$('#dStepNew').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
+  e.preventDefault();
+  addDStep();
+});
+
 function openTaskDialog(t) {
   S.editTask = t.id;
   $('#dProj').value = t.project;
@@ -901,6 +966,10 @@ function openTaskDialog(t) {
   dDue.set(t.due);
   dRem.set(t.remind);
   dRep.set(t.repeat, t.until);
+  S.dSteps = stepsOf(t).map((x) => ({ t: x.t, d: !!x.d }));
+  S.dStepsOrig = JSON.stringify(S.dSteps);
+  $('#dStepNew').value = '';
+  renderDSteps();
   $('#dMeta').textContent = `${mmdd(t.created)} 생성` + (t.done ? ` · ${mmdd(t.done)} 완료` : '');
   $('#taskDlg').showModal();
 }
@@ -914,7 +983,11 @@ $('#taskDlgForm').addEventListener('submit', (e) => {
   const remind = dRem.get();
   if (remind !== (t.remind || '')) delete notified[t.id];   // 시각을 바꾸면 다시 알림
   const rep = dRep.get(dDue.get() || t.due);
-  saveTask(t, { project: $('#dProj').value.trim(), title, due: dDue.get() || (rep.repeat ? S.today : ''), remind, repeat: rep.repeat, until: rep.until }).catch(() => {});
+  addDStep();   // 입력만 하고 Enter를 안 누른 단계도 포함
+  const patch = { project: $('#dProj').value.trim(), title, due: dDue.get() || (rep.repeat ? S.today : ''), remind, repeat: rep.repeat, until: rep.until };
+  const steps = S.dSteps.map((x) => ({ t: x.t.trim(), d: x.d })).filter((x) => x.t);
+  if (JSON.stringify(steps) !== S.dStepsOrig) patch.steps = steps;   // 바뀐 경우에만 전송
+  saveTask(t, patch).catch(() => {});
 });
 $('#dCancel').addEventListener('click', () => $('#taskDlg').close());
 $('#dDelete').addEventListener('click', () => {
@@ -1122,7 +1195,7 @@ function renderSearch() {
   const hit = (txt) => { const l = txt.toLowerCase(); return tokens.every((t) => l.indexOf(t) >= 0); };
   const items = [];
   if (qKind !== 'rec') S.tasks.forEach((t) => {
-    if (t.status !== 'deleted' && hit(`${t.project} ${t.title}`)) items.push({ kind: 'task', date: t.done || t.created, o: t });
+    if (t.status !== 'deleted' && hit(`${t.project} ${t.title} ${stepsOf(t).map((x) => x.t).join(' ')}`)) items.push({ kind: 'task', date: t.done || t.created, o: t });
   });
   if (qKind !== 'task') S.records.forEach((r) => {
     if (hit(`${r.project} ${r.content} ${r.next}`)) items.push({ kind: 'rec', date: r.date, o: r });

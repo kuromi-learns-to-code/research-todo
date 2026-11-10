@@ -17,12 +17,14 @@ const H_TODO = '𝑹𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝑻𝒐-𝒅𝒐';
 const H_REC = '𝑨𝒏𝒂𝒍𝒚𝒔𝒊𝒔 𝑹𝒆𝒄𝒐𝒓𝒅𝒔';
 const MARK = { done: '✅', open: '➡️', overdue: '😡', rec: '▷', next: '✍🏻' };
 const SCHEMA = {
-  Tasks: ['id', 'project', 'title', 'status', 'created', 'done', 'updated', 'due', 'remind', 'repeat', 'until', 'nextId'],
+  Tasks: ['id', 'project', 'title', 'status', 'created', 'done', 'updated', 'due', 'remind', 'repeat', 'until', 'nextId', 'steps'],
   Records: ['id', 'date', 'project', 'content', 'next', 'nextDone', 'deleted', 'updated'],
 };
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // 반복 규칙: d=매일, wd=평일, w:1,3=매주 월·수(0=일), m:15=매월 15일 (말일보다 크면 그 달 마지막 날)
 const REPEAT_RE = /^(d|wd|w:[0-6](,[0-6])*|m:([1-9]|[12]\d|3[01]))$/;
+// 딸림 할일(단계): steps 칸에 JSON [{"t":"내용","d":true/false}]. 메모에는 할일 아래 들여쓰기로 넘어감
+const STEP_ON = '☑', STEP_OFF = '☐', STEP_INDENT = '   ';
 const REMIND_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;   // 알림 시각 (한국시간, 예: 2026-11-09T14:30)
 const WEEKDAY = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
 
@@ -143,7 +145,7 @@ function apiSaveTask(key, input) {
   return withLock_(function () {
     const today = today_();
     const cur = input.id ? find_('Tasks', input.id) : null;
-    const t = cur || { id: safeId_(input.id), project: '', title: '', status: 'open', created: today, done: '', due: '', remind: '', repeat: '', until: '', nextId: '' };
+    const t = cur || { id: safeId_(input.id), project: '', title: '', status: 'open', created: today, done: '', due: '', remind: '', repeat: '', until: '', nextId: '', steps: '' };
     let spawned = null, removed = '';
     if (input.project != null) t.project = clean_(input.project);
     if (input.title != null) t.title = clean_(input.title);
@@ -151,6 +153,14 @@ function apiSaveTask(key, input) {
     if (input.remind != null) t.remind = REMIND_RE.test(input.remind) ? input.remind : '';
     if (input.repeat != null) t.repeat = REPEAT_RE.test(input.repeat) ? input.repeat : '';
     if (input.until != null) t.until = DATE_RE.test(input.until) ? input.until : '';
+    if (input.steps != null) {
+      t.steps = stepsToStr_(input.steps);
+      // 모든 단계를 체크하면 할일도 완료
+      const st = stepsOf_(t.steps);
+      if (st.length && st.every(function (x) { return x.d; }) && t.status === 'open' && !input.status) {
+        input.status = 'done'; input.done = ''; t._autoDone = true;
+      }
+    }
     if (t.repeat && !t.due) t.due = nextDue_(t.repeat, addDays_(today, -1), today) || today;   // 반복은 마감일 기준: 첫 회차 = 오늘 이후 첫 해당일
     if (t.repeat && t.due && t.status === 'open') alignToRule_(t);   // 마감일이 반복 요일/날짜와 어긋나면 맞춘다
     if (input.status && input.status !== t.status) {
@@ -166,6 +176,7 @@ function apiSaveTask(key, input) {
           spawned = {
             id: newId_(), project: t.project, title: t.title, status: 'open', created: today, done: '',
             due: nd, remind: shiftRemind_(t.remind, t.due, nd), repeat: t.repeat, until: t.until, nextId: '', updated: stamp_(),
+            steps: stepsToStr_(stepsOf_(t.steps).map(function (x) { return { t: x.t, d: false }; })),   // 단계는 체크 해제해서 복사
           };
           t.nextId = spawned.id;
         }
@@ -181,7 +192,9 @@ function apiSaveTask(key, input) {
     t.updated = stamp_();
     write_('Tasks', t);
     if (spawned) appendRows_('Tasks', [spawned]);
+    const autoDone = !!t._autoDone; delete t._autoDone;
     const out = strip_(t);
+    if (autoDone) out._autoDone = true;
     if (spawned) out._next = strip_(spawned);
     if (removed) out._removed = removed;
     return out;
@@ -248,7 +261,7 @@ function apiImport(key, text, defaultDate) {
           } else if (same.some(function (t) { return t.done === day.date; })) {
             res.skipped++;
           } else {
-            const n = { id: newId_(), project: it.project, title: it.title, status: 'done', created: day.date, done: day.date, updated: now, due: '', remind: '' };
+            const n = { id: newId_(), project: it.project, title: it.title, status: 'done', created: day.date, done: day.date, updated: now, due: '', remind: '', steps: stepsToStr_(it.steps) };
             tasks.push(n); newTasks.push(n); res.added++;
           }
         } else {
@@ -258,7 +271,7 @@ function apiImport(key, text, defaultDate) {
             if (ongoing.created > day.date) { ongoing.created = day.date; touch(ongoing); }
             res.skipped++;
           } else {
-            const n = { id: newId_(), project: it.project, title: it.title, status: 'open', created: day.date, done: '', updated: now, due: '', remind: '' };
+            const n = { id: newId_(), project: it.project, title: it.title, status: 'open', created: day.date, done: '', updated: now, due: '', remind: '', steps: stepsToStr_(it.steps) };
             tasks.push(n); newTasks.push(n); res.added++;
           }
         }
@@ -297,7 +310,9 @@ function buildNotes_(date, withHeader) {
   }).map(function (t) {
     const mark = t.status === 'done' && t.done === date ? MARK.done
       : (t.due && t.due < date ? MARK.overdue : MARK.open);
-    return mark + ' ' + label_(t.project, t.title);
+    const lines = [mark + ' ' + label_(t.project, t.title)];
+    stepsOf_(t.steps).forEach(function (x) { lines.push(STEP_INDENT + (x.d ? STEP_ON : STEP_OFF) + ' ' + x.t); });
+    return lines.join('\n');
   });
 
   const recs = [];
@@ -325,6 +340,7 @@ function parseNote_(text, defaultDate) {
   let date = defaultDate;
   let last = null;
   let lastField = '';
+  let lastTask = null;
 
   const dayOf = function (d) {
     let x = days.filter(function (y) { return y.date === d; })[0];
@@ -337,6 +353,12 @@ function parseNote_(text, defaultDate) {
     if (!line) { lastField = ''; return; }
     const kind = markOf_(line);
     const n = line.normalize('NFKC');
+    if (!kind && lastTask && (line.charAt(0) === STEP_ON || line.charAt(0) === STEP_OFF)) {
+      const st = line.slice(1).trim();
+      if (st) lastTask.steps.push({ t: st, d: line.charAt(0) === STEP_ON });
+      return;
+    }
+    if (kind || !(line.charAt(0) === STEP_ON || line.charAt(0) === STEP_OFF)) lastTask = null;
 
     if (!kind) {
       const dm = n.match(/^(\d{4})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})/);
@@ -351,7 +373,8 @@ function parseNote_(text, defaultDate) {
     const body = stripMark_(line);
     if (kind === 'done' || kind === 'open') {
       const s = splitProj_(body);
-      day.tasks.push({ project: s.project, title: s.text, status: kind });
+      lastTask = { project: s.project, title: s.text, status: kind, steps: [] };
+      day.tasks.push(lastTask);
       last = null; lastField = '';
     } else if (kind === 'rec') {
       const s = splitProj_(body);
@@ -495,6 +518,16 @@ function nextItems_(s) { return String(s || '').split('\n').map(function (x) { r
 function label_(project, text) { return project ? '[' + project + '] ' + text : text; }
 function strip_(o) { const c = {}; Object.keys(o).forEach(function (k) { if (k !== '_row') c[k] = o[k]; }); return c; }
 function pad2_(n) { return ('0' + n).slice(-2); }
+
+/* ---------- 단계 ---------- */
+function stepsOf_(v) {
+  let a = v;
+  if (typeof v === 'string') { try { a = v ? JSON.parse(v) : []; } catch (e) { a = []; } }
+  if (!Array.isArray(a)) return [];
+  return a.map(function (x) { return { t: clean_(x && x.t != null ? x.t : ''), d: !!(x && x.d) }; })
+    .filter(function (x) { return x.t; }).slice(0, 50);
+}
+function stepsToStr_(v) { const a = stepsOf_(v); return a.length ? JSON.stringify(a) : ''; }
 
 /* ---------- 반복 ---------- */
 function ymdToUTC_(s) { const p = s.split('-').map(Number); return Date.UTC(p[0], p[1] - 1, p[2]); }
