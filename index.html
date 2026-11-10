@@ -7,26 +7,20 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="theme-color" content="#f5f5f2" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#fff8f0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Research Notes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root {
-  --bg: #f5f5f2; --surface: #ffffff; --text: #1c1c1e; --muted: #6e6e73; --line: #e2e2dd;
-  --accent: #2c6e5c; --accent-weak: #e3efea; --accent-text: #ffffff;
-  --danger: #c0392b; --warn: #b26a00; --tag-bg: #ecebe6; --tag-text: #4a4a4f;
-  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 2px 8px rgba(0,0,0,.04);
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #121212; --surface: #1d1d1f; --text: #ececec; --muted: #9b9ba0; --line: #2f2f32;
-    --accent: #6cc3a6; --accent-weak: #1d332c; --accent-text: #0e1f1a;
-    --danger: #ef6f61; --warn: #f0b04f; --tag-bg: #2c2c2f; --tag-text: #c9c9cd;
-    --shadow: none;
-  }
+  /* 봄 라이트: 크림 · 피치 · 코랄 · 버터 */
+  --bg: #fff8f0; --surface: #ffffff; --text: #4a3329; --muted: #a2887a; --line: #f3e3d6;
+  --accent: #e8775a; --accent-weak: #ffeae0; --accent-text: #ffffff;
+  --btn: #ffa283; --btn-text: #4a2014;
+  --danger: #d9473a; --warn: #d98324; --tag-bg: #fff1cc; --tag-text: #7a5a22;
+  --shadow: 0 1px 2px rgba(140,80,50,.05), 0 4px 14px rgba(140,80,50,.06);
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
@@ -46,7 +40,7 @@ header.top .sub { color: var(--muted); font-size: 13px; }
 .icon-btn.spin svg { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-nav.tabs { display: flex; gap: 4px; background: var(--tag-bg); padding: 4px; border-radius: 12px; margin-bottom: 16px; }
+nav.tabs { display: flex; gap: 4px; background: var(--accent-weak); padding: 4px; border-radius: 12px; margin-bottom: 16px; }
 nav.tabs button { flex: 1; min-width: 0; word-break: keep-all; border: 0; background: transparent; padding: 8px 4px; font-size: 14px; line-height: 1.25; border-radius: 9px; cursor: pointer; color: var(--muted); font-weight: 500; }
 nav.tabs button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 
@@ -59,7 +53,7 @@ nav.tabs button.on { background: var(--surface); color: var(--text); box-shadow:
 .field:focus { border-color: var(--accent); }
 textarea.field { resize: vertical; min-height: 64px; line-height: 1.45; }
 .proj { flex: 0 0 34%; max-width: 150px; }
-.btn { border: 0; background: var(--accent); color: var(--accent-text); border-radius: 10px; padding: 9px 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btn { border: 0; background: var(--btn); color: var(--btn-text); border-radius: 10px; padding: 9px 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); font-weight: 500; }
 .btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--line); font-weight: 500; }
 .btn.sm { padding: 5px 10px; font-size: 13px; border-radius: 8px; }
@@ -93,8 +87,11 @@ ul.list { list-style: none; margin: 0; padding: 0; }
 .sres .b, .sres .n { white-space: pre-wrap; word-break: break-word; }
 .sres .n { color: var(--muted); }
 .sres.done .b { color: var(--muted); }
-mark { background: #ffe38a; color: #1c1c1e; border-radius: 3px; padding: 0 1px; }
-@media (prefers-color-scheme: dark) { mark { background: #7a6420; color: #fff; } }
+mark { background: #ffe08a; color: #4a3329; border-radius: 3px; padding: 0 1px; }
+.rpt { display: inline-block; font-size: 12px; color: var(--accent); margin-right: 8px; font-weight: 600; }
+.repbar select.field { width: auto; padding: 4px 8px; font-size: 14px; border-radius: 999px; }
+.repbar .wdays { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.repbar .chip.wd { padding: 3px 8px; }
 .rmd { display: inline-block; font-size: 12px; color: var(--muted); margin-right: 8px; }
 .rmd.past { text-decoration: line-through; }
 .duebar .field.dt { width: auto; flex: 0 1 auto; padding: 4px 8px; font-size: 14px; border-radius: 999px; }
@@ -149,9 +146,9 @@ dialog .grid { display: grid; gap: 8px; }
 dialog .acts { display: flex; gap: 8px; margin-top: 14px; }
 dialog .acts .sp { flex: 1; }
 
-#toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(120px); background: #2b2b2e; color: #fff; padding: 10px 14px; border-radius: 12px; display: flex; gap: 12px; align-items: center; font-size: 14px; transition: transform .2s; max-width: calc(100vw - 32px); z-index: 10; }
+#toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(120px); background: #5a3d30; color: #fff; padding: 10px 14px; border-radius: 12px; display: flex; gap: 12px; align-items: center; font-size: 14px; transition: transform .2s; max-width: calc(100vw - 32px); z-index: 10; }
 #toast.show { transform: translateX(-50%) translateY(0); }
-#toast button { background: transparent; border: 0; color: #8fe0c4; font-weight: 700; cursor: pointer; padding: 0; }
+#toast button { background: transparent; border: 0; color: #ffc4a8; font-weight: 700; cursor: pointer; padding: 0; }
 
 .gate { max-width: 380px; margin: 18vh auto 0; text-align: center; }
 .gate p { color: var(--muted); font-size: 14px; }
@@ -217,6 +214,15 @@ dialog .acts .sp { flex: 1; }
           <button type="button" class="chip" data-rem="t9">내일 9시</button>
           <input type="datetime-local" class="field dt" aria-label="알림 시각 직접 선택">
           <button type="button" class="clear" hidden aria-label="알림 지우기">✕</button>
+        </div>
+        <div class="duebar repbar" id="tRepBar">
+          <span class="lbl">반복</span>
+          <select class="field" aria-label="반복">
+            <option value="">안 함</option><option value="d">매일</option><option value="wd">평일</option>
+            <option value="w">매주</option><option value="m">매월</option>
+          </select>
+          <span class="wdays" hidden><button type="button" class="chip wd" data-d="1">월</button><button type="button" class="chip wd" data-d="2">화</button><button type="button" class="chip wd" data-d="3">수</button><button type="button" class="chip wd" data-d="4">목</button><button type="button" class="chip wd" data-d="5">금</button><button type="button" class="chip wd" data-d="6">토</button><button type="button" class="chip wd" data-d="0">일</button></span>
+          <span class="until" hidden><span class="lbl">종료</span><input type="date" class="field dt" aria-label="반복 종료일 (비우면 계속 반복)"></span>
         </div>
         <div id="chips" class="chips"></div>
         <ul id="taskList" class="list"></ul>
@@ -343,6 +349,15 @@ dialog .acts .sp { flex: 1; }
           <input type="datetime-local" class="field dt" aria-label="알림 시각 직접 선택">
           <button type="button" class="clear" hidden aria-label="알림 지우기">✕</button>
         </div>
+        <div class="duebar repbar" id="dRepBar" style="margin-top:0">
+          <span class="lbl">반복</span>
+          <select class="field" aria-label="반복">
+            <option value="">안 함</option><option value="d">매일</option><option value="wd">평일</option>
+            <option value="w">매주</option><option value="m">매월</option>
+          </select>
+          <span class="wdays" hidden><button type="button" class="chip wd" data-d="1">월</button><button type="button" class="chip wd" data-d="2">화</button><button type="button" class="chip wd" data-d="3">수</button><button type="button" class="chip wd" data-d="4">목</button><button type="button" class="chip wd" data-d="5">금</button><button type="button" class="chip wd" data-d="6">토</button><button type="button" class="chip wd" data-d="0">일</button></span>
+          <span class="until" hidden><span class="lbl">종료</span><input type="date" class="field dt" aria-label="반복 종료일 (비우면 계속 반복)"></span>
+        </div>
       <div class="tmeta" id="dMeta"></div>
     </div>
     <div class="acts">
@@ -418,6 +433,20 @@ function remFor(kind) {
   if (kind === '1h') { d.setSeconds(0, 0); d.setMinutes(d.getMinutes() + 60); return localDT(d); }
   if (kind === '17') { d.setHours(17, 0, 0, 0); return localDT(d); }
   d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); return localDT(d);   // t9 = 내일 9시
+}
+const WD_ORDER = [1, 2, 3, 4, 5, 6, 0];
+function repLabel(rule) {
+  if (!rule) return '';
+  if (rule === 'd') return '매일';
+  if (rule === 'wd') return '평일';
+  if (rule.indexOf('w:') === 0) return '매주 ' + rule.slice(2).split(',').map(Number)
+    .sort((a, b) => WD_ORDER.indexOf(a) - WD_ORDER.indexOf(b)).map((d) => WD[d]).join('·');
+  if (rule.indexOf('m:') === 0) return `매월 ${rule.slice(2)}일`;
+  return '';
+}
+function repHtml(t) {
+  if (!t.repeat || t.status !== 'open') return '';
+  return `<span class="rpt">🔁 ${repLabel(t.repeat)}${t.until ? ` ~${mmdd(t.until)}` : ''}</span>`;
 }
 function remHtml(t) {
   if (!t.remind || t.status !== 'open') return '';
@@ -570,7 +599,7 @@ function renderTasks() {
       </button>
       <div class="tbody" data-act="edit">
         <div class="ttitle">${tagHtml(t.project)}${esc(t.title)}</div>
-        ${(t.status === 'open' && (t.due || t.remind)) || age > 0 ? `<div class="tmeta">${dueHtml(t)}${remHtml(t)}${age > 0 ? `➡️ ${mmdd(t.created)}부터 · ${age}일째` : ''}</div>` : ''}
+        ${(t.status === 'open' && (t.due || t.remind || t.repeat)) || age > 0 ? `<div class="tmeta">${dueHtml(t)}${repHtml(t)}${remHtml(t)}${age > 0 ? `➡️ ${mmdd(t.created)}부터 · ${age}일째` : ''}</div>` : ''}
       </div>
     </li>`;
   };
@@ -731,6 +760,48 @@ function remBar(sel) {
   input.addEventListener('change', sync);
   return { get: () => input.value, set: (v) => { input.value = v || ''; sync(); }, sync };
 }
+function repBar(sel) {
+  const bar = $(sel), kind = bar.querySelector('select'), wdays = bar.querySelector('.wdays'),
+    untilWrap = bar.querySelector('.until'), until = untilWrap.querySelector('input');
+  const sync = () => {
+    wdays.hidden = kind.value !== 'w';
+    untilWrap.hidden = !kind.value;
+  };
+  kind.addEventListener('change', () => {
+    if (kind.value === 'w' && !wdays.querySelector('.chip.on')) {
+      const dow = new Date(parseYmd(S.today)).getUTCDay();
+      wdays.querySelector(`[data-d="${dow}"]`).classList.add('on');
+    }
+    sync();
+  });
+  wdays.addEventListener('click', (e) => {
+    const c = e.target.closest('.chip');
+    if (!c) return;
+    c.classList.toggle('on');
+    if (!wdays.querySelector('.chip.on')) c.classList.add('on');   // 최소 하나는 선택
+  });
+  return {
+    /** due: 이 할일의 마감일 (매월 기준일 계산용) */
+    get(due) {
+      const k = kind.value;
+      let rule = '';
+      if (k === 'd' || k === 'wd') rule = k;
+      if (k === 'w') rule = 'w:' + [...wdays.querySelectorAll('.chip.on')].map((c) => c.dataset.d).join(',');
+      if (k === 'm') rule = 'm:' + Number((due || S.today).slice(8));
+      return { repeat: rule, until: rule ? until.value : '' };
+    },
+    set(rule, untilVal) {
+      rule = rule || '';
+      kind.value = rule.indexOf('w:') === 0 ? 'w' : rule.indexOf('m:') === 0 ? 'm' : rule;
+      const on = rule.indexOf('w:') === 0 ? rule.slice(2).split(',') : [];
+      wdays.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', on.indexOf(c.dataset.d) >= 0));
+      until.value = untilVal || '';
+      sync();
+    },
+  };
+}
+const tRep = repBar('#tRepBar');
+const dRep = repBar('#dRepBar');
 const tRem = remBar('#tRemBar');
 const dRem = remBar('#dRemBar');
 
@@ -740,14 +811,29 @@ function saveTask(t, patch) {
   Object.assign(t, patch);
   renderAll();
   return call('apiSaveTask', Object.assign({ id: t.id }, patch))
-    .then((srv) => { Object.assign(t, srv); renderTasks(); return srv; })
+    .then((srv) => { applyServerTask(t, srv); return srv; })
     .catch((err) => { Object.assign(t, prev); renderAll(); fail(err); throw err; });
 }
 
-function addTask(project, title, due, remind) {
+/** 서버 응답 반영: 반복 할일의 다음 회차 추가 / 취소된 회차 제거 */
+function applyServerTask(t, srv) {
+  const next = srv._next, removed = srv._removed;
+  delete srv._next; delete srv._removed;
+  Object.assign(t, srv);
+  if (next && !S.tasks.some((x) => x.id === next.id)) {
+    S.tasks.push(next);
+    toast(`🔁 다음 회차: ${mmdd(next.due)} (${WD[dowOf(next.due)]})`);
+  }
+  if (removed) S.tasks = S.tasks.filter((x) => x.id !== removed);
+  renderTasks();
+}
+
+function addTask(project, title, due, remind, rep) {
   const m = title.match(/^\[([^\]]+)\]\s*(.+)$/);
   if (m && !project) { project = m[1].trim(); title = m[2].trim(); }
-  const t = { id: uid(), project, title, status: 'open', created: S.today, done: '', due: due || '', remind: remind || '', updated: new Date().toISOString() };
+  rep = rep || { repeat: '', until: '' };
+  const t = { id: uid(), project, title, status: 'open', created: S.today, done: '', due: due || (rep.repeat ? S.today : ''),
+    remind: remind || '', repeat: rep.repeat, until: rep.until, updated: new Date().toISOString() };
   S.tasks.push(t);
   renderAll();
   return call('apiSaveTask', t)
@@ -767,11 +853,12 @@ $('#taskForm').addEventListener('submit', (e) => {
   const title = $('#tTitle').value.trim();
   const project = $('#tProj').value.trim();
   if (!title) return $('#tTitle').focus();
-  addTask(project, title, tDue.get(), tRem.get());
+  addTask(project, title, tDue.get(), tRem.get(), tRep.get(tDue.get()));
   store.set('rt.lastProj', project);
   $('#tTitle').value = '';
   tDue.set('');
   tRem.set('');
+  tRep.set('', '');
   $('#tTitle').focus();
 });
 
@@ -805,6 +892,7 @@ function openTaskDialog(t) {
   $('#dTitle').value = t.title;
   dDue.set(t.due);
   dRem.set(t.remind);
+  dRep.set(t.repeat, t.until);
   $('#dMeta').textContent = `${mmdd(t.created)} 생성` + (t.done ? ` · ${mmdd(t.done)} 완료` : '');
   $('#taskDlg').showModal();
 }
@@ -817,7 +905,8 @@ $('#taskDlgForm').addEventListener('submit', (e) => {
   $('#taskDlg').close();
   const remind = dRem.get();
   if (remind !== (t.remind || '')) delete notified[t.id];   // 시각을 바꾸면 다시 알림
-  saveTask(t, { project: $('#dProj').value.trim(), title, due: dDue.get(), remind }).catch(() => {});
+  const rep = dRep.get(dDue.get() || t.due);
+  saveTask(t, { project: $('#dProj').value.trim(), title, due: dDue.get() || (rep.repeat ? S.today : ''), remind, repeat: rep.repeat, until: rep.until }).catch(() => {});
 });
 $('#dCancel').addEventListener('click', () => $('#taskDlg').close());
 $('#dDelete').addEventListener('click', () => {

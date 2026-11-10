@@ -17,10 +17,12 @@ const H_TODO = '𝑹𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝑻𝒐-𝒅𝒐';
 const H_REC = '𝑨𝒏𝒂𝒍𝒚𝒔𝒊𝒔 𝑹𝒆𝒄𝒐𝒓𝒅𝒔';
 const MARK = { done: '✅', open: '➡️', overdue: '😡', rec: '▷', next: '✍🏻' };
 const SCHEMA = {
-  Tasks: ['id', 'project', 'title', 'status', 'created', 'done', 'updated', 'due', 'remind'],
+  Tasks: ['id', 'project', 'title', 'status', 'created', 'done', 'updated', 'due', 'remind', 'repeat', 'until', 'nextId'],
   Records: ['id', 'date', 'project', 'content', 'next', 'nextDone', 'deleted', 'updated'],
 };
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// 반복 규칙: d=매일, wd=평일, w:1,3=매주 월·수(0=일), m:15=매월 15일 (말일보다 크면 그 달 마지막 날)
+const REPEAT_RE = /^(d|wd|w:[0-6](,[0-6])*|m:([1-9]|[12]\d|3[01]))$/;
 const REMIND_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;   // 알림 시각 (한국시간, 예: 2026-11-09T14:30)
 const WEEKDAY = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
 
@@ -141,21 +143,47 @@ function apiSaveTask(key, input) {
   return withLock_(function () {
     const today = today_();
     const cur = input.id ? find_('Tasks', input.id) : null;
-    const t = cur || { id: safeId_(input.id), project: '', title: '', status: 'open', created: today, done: '', due: '', remind: '' };
+    const t = cur || { id: safeId_(input.id), project: '', title: '', status: 'open', created: today, done: '', due: '', remind: '', repeat: '', until: '', nextId: '' };
+    let spawned = null, removed = '';
     if (input.project != null) t.project = clean_(input.project);
     if (input.title != null) t.title = clean_(input.title);
     if (input.due != null) t.due = DATE_RE.test(input.due) ? input.due : '';
     if (input.remind != null) t.remind = REMIND_RE.test(input.remind) ? input.remind : '';
+    if (input.repeat != null) t.repeat = REPEAT_RE.test(input.repeat) ? input.repeat : '';
+    if (input.until != null) t.until = DATE_RE.test(input.until) ? input.until : '';
+    if (t.repeat && !t.due) t.due = nextDue_(t.repeat, addDays_(today, -1), today) || today;   // 반복은 마감일 기준: 첫 회차 = 오늘 이후 첫 해당일
     if (input.status && input.status !== t.status) {
+      const wasOpen = t.status === 'open';
       if (['open', 'done', 'deleted'].indexOf(input.status) < 0) throw new Error('잘못된 상태값: ' + input.status);
       if (input.status === 'done') t.done = DATE_RE.test(input.done || '') ? input.done : today;
       if (input.status === 'open') t.done = '';
       t.status = input.status;
+      // 반복 할일을 완료하면 다음 회차를 만든다
+      if (wasOpen && t.status === 'done' && t.repeat && !t.nextId) {
+        const nd = nextDue_(t.repeat, t.due || today, today);
+        if (nd && (!t.until || nd <= t.until)) {
+          spawned = {
+            id: newId_(), project: t.project, title: t.title, status: 'open', created: today, done: '',
+            due: nd, remind: shiftRemind_(t.remind, t.due, nd), repeat: t.repeat, until: t.until, nextId: '', updated: stamp_(),
+          };
+          t.nextId = spawned.id;
+        }
+      }
+      // 완료를 취소하면, 아직 손대지 않은 다음 회차는 지운다
+      if (t.status === 'open' && t.nextId) {
+        const nx = find_('Tasks', t.nextId);
+        if (nx && nx.status === 'open') { nx.status = 'deleted'; nx.updated = stamp_(); write_('Tasks', nx); removed = nx.id; }
+        t.nextId = '';
+      }
     }
     if (!t.title) throw new Error('할 일 내용이 비어 있습니다.');
     t.updated = stamp_();
     write_('Tasks', t);
-    return strip_(t);
+    if (spawned) appendRows_('Tasks', [spawned]);
+    const out = strip_(t);
+    if (spawned) out._next = strip_(spawned);
+    if (removed) out._removed = removed;
+    return out;
   });
 }
 
@@ -262,6 +290,7 @@ function apiImport(key, text, defaultDate) {
 function buildNotes_(date, withHeader) {
   const todo = read_('Tasks').filter(function (t) {
     if (t.status === 'deleted' || !t.created || t.created > date) return false;
+    if (t.repeat && t.status === 'open' && t.due > date) return false;   // 아직 차례가 오지 않은 반복 회차
     if (t.status === 'open') return true;
     return t.status === 'done' && t.done >= date;
   }).map(function (t) {
@@ -465,6 +494,42 @@ function nextItems_(s) { return String(s || '').split('\n').map(function (x) { r
 function label_(project, text) { return project ? '[' + project + '] ' + text : text; }
 function strip_(o) { const c = {}; Object.keys(o).forEach(function (k) { if (k !== '_row') c[k] = o[k]; }); return c; }
 function pad2_(n) { return ('0' + n).slice(-2); }
+
+/* ---------- 반복 ---------- */
+function ymdToUTC_(s) { const p = s.split('-').map(Number); return Date.UTC(p[0], p[1] - 1, p[2]); }
+function utcToYmd_(t) { return new Date(t).toISOString().slice(0, 10); }
+function addDays_(s, n) { return utcToYmd_(ymdToUTC_(s) + n * 864e5); }
+
+/** 반복 규칙에 맞는 날 중, 이전 마감일보다 뒤이면서 오늘 이후인 첫 날 */
+function nextDue_(rule, prevDue, today) {
+  const after = prevDue >= today ? addDays_(prevDue, 1) : today;
+  if (rule.indexOf('m:') === 0) {
+    const want = Number(rule.slice(2));
+    let p = after.split('-').map(Number);
+    for (let k = 0; k < 24; k++) {
+      const y = p[0] + Math.floor((p[1] - 1 + k) / 12), m = ((p[1] - 1 + k) % 12) + 1;
+      const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const d = y + '-' + pad2_(m) + '-' + pad2_(Math.min(want, last));
+      if (d >= after) return d;
+    }
+    return '';
+  }
+  const days = rule === 'd' ? [0, 1, 2, 3, 4, 5, 6] : rule === 'wd' ? [1, 2, 3, 4, 5]
+    : rule.slice(2).split(',').map(Number);
+  for (let i = 0; i < 14; i++) {
+    const d = addDays_(after, i);
+    if (days.indexOf(new Date(ymdToUTC_(d)).getUTCDay()) >= 0) return d;
+  }
+  return '';
+}
+
+/** 알림 시각을 마감일 이동만큼 옮긴다 (시각은 유지) */
+function shiftRemind_(remind, fromDue, toDue) {
+  if (!remind || !fromDue) return '';
+  const p = remind.split('T');
+  const gap = Math.round((ymdToUTC_(p[0]) - ymdToUTC_(fromDue)) / 864e5);
+  return addDays_(toDue, gap) + 'T' + p[1];
+}
 
 function koDate_(ymd) {
   const p = ymd.split('-').map(Number);
