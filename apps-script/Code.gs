@@ -15,7 +15,8 @@
 const TZ = 'Asia/Seoul';
 const H_TODO = '𝑹𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝑻𝒐-𝒅𝒐';
 const H_REC = '𝑨𝒏𝒂𝒍𝒚𝒔𝒊𝒔 𝑹𝒆𝒄𝒐𝒓𝒅𝒔';
-const MARK = { done: '✅', open: '➡️', overdue: '😡', rec: '▷', next: '✍🏻' };
+// 메모 기호: 상자 없는 체크·화살표, 기록 🔶 / 추가 정보 🔸 (가져오기는 예전 기호 ✅ ➡️ ▷ ✍🏻 ☑ ☐ 도 인식)
+const MARK = { done: '✔︎', open: '➔', overdue: '😡', rec: '🔶', next: '🔸' };
 const SCHEMA = {
   Tasks: ['id', 'project', 'title', 'status', 'created', 'done', 'updated', 'due', 'remind', 'repeat', 'until', 'nextId', 'steps', 'dueAuto'],
   Records: ['id', 'date', 'project', 'content', 'next', 'nextDone', 'deleted', 'updated'],
@@ -24,7 +25,9 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // 반복 규칙: d=매일, wd=평일, w:1,3=매주 월·수(0=일), m:15=매월 15일 (말일보다 크면 그 달 마지막 날)
 const REPEAT_RE = /^(d|wd|w:[0-6](,[0-6])*|m:([1-9]|[12]\d|3[01]))$/;
 // 딸림 할일(단계): steps 칸에 JSON [{"t":"내용","d":true/false}]. 메모에는 할일 아래 들여쓰기로 넘어감
-const STEP_ON = '☑', STEP_OFF = '☐', STEP_INDENT = '   ';
+const STEP_ON = '✓', STEP_OFF = '·', STEP_INDENT = '   ';
+const isStepOn_ = function (c) { return c === STEP_ON || c === '☑' || c === '✔'; };
+const isStepOff_ = function (c) { return c === STEP_OFF || c === '☐'; };
 const REMIND_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;   // 알림 시각 (한국시간, 예: 2026-11-09T14:30)
 const WEEKDAY = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
 
@@ -363,12 +366,12 @@ function parseNote_(text, defaultDate) {
     if (!line) { lastField = ''; return; }
     const kind = markOf_(line);
     const n = line.normalize('NFKC');
-    if (!kind && lastTask && (line.charAt(0) === STEP_ON || line.charAt(0) === STEP_OFF)) {
-      const st = line.slice(1).trim();
+    if (!kind && lastTask && (isStepOn_(line.charAt(0)) || isStepOff_(line.charAt(0)))) {
+      const st = line.slice(1).replace(/^[\uFE0E\uFE0F]/, '').trim();
       if (st) {
         // "(~11/12)" 꼬리표 → 단계 마감 (연도는 메모 날짜 기준, 반년 넘게 앞서면 다음 해)
         const m = st.match(/^(.*?)\s*\(~(\d{1,2})\/(\d{1,2})\)$/);
-        const step = { t: m ? m[1] : st, d: line.charAt(0) === STEP_ON };
+        const step = { t: m ? m[1] : st, d: isStepOn_(line.charAt(0)) };
         if (m) {
           let y = Number(date.slice(0, 4));
           let due = y + '-' + pad2_(m[2]) + '-' + pad2_(m[3]);
@@ -379,7 +382,7 @@ function parseNote_(text, defaultDate) {
       }
       return;
     }
-    if (kind || !(line.charAt(0) === STEP_ON || line.charAt(0) === STEP_OFF)) lastTask = null;
+    if (kind || !(isStepOn_(line.charAt(0)) || isStepOff_(line.charAt(0)))) lastTask = null;
 
     if (!kind) {
       const dm = n.match(/^(\d{4})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})/);
@@ -421,15 +424,15 @@ function parseNote_(text, defaultDate) {
 
 function markOf_(line) {
   const c = line.charAt(0);
-  if (c === '✅') return 'done';                       // ✅
-  if (c === '➡' || c === '→' || c === '⏰' || line.indexOf('\uD83D\uDE21') === 0) return 'open';   // ➡️ → ⏰ 😡
-  if (c === '▷' || c === '▶' || c === '▸') return 'rec';  // ▷ ▶ ▸
-  if (c === '✍') return 'next';                       // ✍🏻
+  if (c === '✅' || c === '✔') return 'done';                                     // ✔︎ (예전 ✅)
+  if (c === '➔' || c === '➡' || c === '→' || c === '⏰' || line.indexOf('\uD83D\uDE21') === 0) return 'open';   // ➔ (예전 ➡️) ⏰ 😡
+  if (line.indexOf('\uD83D\uDD36') === 0 || c === '▷' || c === '▶' || c === '▸') return 'rec';   // 🔶 (예전 ▷)
+  if (line.indexOf('\uD83D\uDD38') === 0 || c === '✍') return 'next';            // 🔸 (예전 ✍🏻)
   return '';
 }
 
 function stripMark_(line) {
-  return line.replace(/^(?:[✅➡→⏰▷▶▸✍]|\uD83D\uDE21)️?(?:\uD83C[\uDFFB-\uDFFF])?️?\s*/, '').trim();
+  return line.replace(/^(?:[✅✔➔➡→⏰▷▶▸✍]|\uD83D[\uDE21\uDD36\uDD38])[\uFE0E\uFE0F]?(?:\uD83C[\uDFFB-\uDFFF])?[\uFE0E\uFE0F]?\s*/, '').trim();
 }
 
 function splitProj_(s) {
