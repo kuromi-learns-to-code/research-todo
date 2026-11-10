@@ -819,7 +819,9 @@ function saveTask(t, patch) {
 function applyServerTask(t, srv) {
   const next = srv._next, removed = srv._removed;
   delete srv._next; delete srv._removed;
+  const aligned = t.status === 'open' && srv.repeat && t.due && srv.due !== t.due;
   Object.assign(t, srv);
+  if (aligned) toast(`🔁 반복 요일에 맞춰 마감을 ${mmdd(srv.due)} (${WD[dowOf(srv.due)]})로 옮겼습니다`);
   if (next && !S.tasks.some((x) => x.id === next.id)) {
     S.tasks.push(next);
     toast(`🔁 다음 회차: ${mmdd(next.due)} (${WD[dowOf(next.due)]})`);
@@ -837,7 +839,7 @@ function addTask(project, title, due, remind, rep) {
   S.tasks.push(t);
   renderAll();
   return call('apiSaveTask', t)
-    .then((srv) => { Object.assign(t, srv); })
+    .then((srv) => applyServerTask(t, srv))
     .catch((err) => { S.tasks.splice(S.tasks.indexOf(t), 1); renderAll(); fail(err); });
 }
 

@@ -152,6 +152,7 @@ function apiSaveTask(key, input) {
     if (input.repeat != null) t.repeat = REPEAT_RE.test(input.repeat) ? input.repeat : '';
     if (input.until != null) t.until = DATE_RE.test(input.until) ? input.until : '';
     if (t.repeat && !t.due) t.due = nextDue_(t.repeat, addDays_(today, -1), today) || today;   // 반복은 마감일 기준: 첫 회차 = 오늘 이후 첫 해당일
+    if (t.repeat && t.due && t.status === 'open') alignToRule_(t);   // 마감일이 반복 요일/날짜와 어긋나면 맞춘다
     if (input.status && input.status !== t.status) {
       const wasOpen = t.status === 'open';
       if (['open', 'done', 'deleted'].indexOf(input.status) < 0) throw new Error('잘못된 상태값: ' + input.status);
@@ -521,6 +522,21 @@ function nextDue_(rule, prevDue, today) {
     if (days.indexOf(new Date(ymdToUTC_(d)).getUTCDay()) >= 0) return d;
   }
   return '';
+}
+
+/**
+ * 마감일을 반복 규칙에 맞는 가장 가까운 날(마감일 포함 이후)로 옮긴다.
+ * 알림: 원래 마감일보다 앞이면 같은 간격만큼 이동, 원래 마감일~새 마감일 사이면 새 마감일로, 그 뒤면 그대로.
+ */
+function alignToRule_(t) {
+  const oldDue = t.due;
+  const newDue = nextDue_(t.repeat, addDays_(oldDue, -1), oldDue);
+  if (!newDue || newDue === oldDue) return;
+  t.due = newDue;
+  if (!t.remind) return;
+  const p = t.remind.split('T');
+  if (p[0] < oldDue) t.remind = shiftRemind_(t.remind, oldDue, newDue);
+  else if (p[0] <= newDue) t.remind = newDue + 'T' + p[1];
 }
 
 /** 알림 시각을 마감일 이동만큼 옮긴다 (시각은 유지) */
