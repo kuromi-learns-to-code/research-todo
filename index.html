@@ -305,6 +305,7 @@ dialog .acts .sp { flex: 1; }
         </div>
         <div class="setting">
           <div><div class="t">아이콘 숫자</div><div class="s">오늘 마감 + 마감 지난(😡) 할일 개수 · <span id="badgeState"></span></div></div>
+          <button class="btn ghost sm" id="badgeTest" style="flex-shrink:0">테스트</button>
         </div>
         <div class="setting">
           <div style="min-width:0; flex:1">
@@ -627,11 +628,16 @@ function renderTasks() {
 function badgeCount() {
   return S.tasks.filter((t) => t.status === 'open' && t.due && t.due <= S.today).length;
 }
+const isInstalledApp = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+let badgeTestTimer = 0;
 function updateBadge() {
+  if (badgeTestTimer) return;   // 테스트 표시 중에는 덮어쓰지 않음
   const n = badgeCount();
   if (!('setAppBadge' in navigator)) { $('#badgeState').textContent = '이 브라우저는 지원하지 않음'; return; }
-  (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {});
-  $('#badgeState').textContent = `현재 ${n}`;
+  const where = isInstalledApp() ? '' : ' (설치된 앱 창이 아니라 브라우저 탭에서 열려 있음 → 아이콘에 표시 안 됨)';
+  (n ? navigator.setAppBadge(n) : navigator.clearAppBadge())
+    .then(() => { $('#badgeState').textContent = `현재 ${n}${n ? '' : ' (0이면 숫자가 표시되지 않음)'}${where}`; })
+    .catch((e) => { $('#badgeState').textContent = `현재 ${n} · 표시 실패: ${e.message || e}`; });
 }
 
 /* ---------------- 할일 알림 ---------------- */
@@ -1064,6 +1070,14 @@ $('#linkCopy').addEventListener('click', () => copyText($('#linkUrl').value));
 $('#notifOn').addEventListener('click', () => {
   if (!notifSupported()) return;
   Notification.requestPermission().then(() => { renderNotifState(); if (Notification.permission === 'granted') showNotif('알림이 켜졌습니다', '지정한 시각에 이렇게 표시됩니다.', 'rt-test'); });
+});
+$('#badgeTest').addEventListener('click', () => {
+  if (!('setAppBadge' in navigator)) return toast('이 브라우저는 아이콘 숫자를 지원하지 않습니다');
+  navigator.setAppBadge(8).then(() => {
+    toast('작업표시줄 아이콘에 8이 보이면 정상입니다 (10초 후 원래대로)');
+    clearTimeout(badgeTestTimer);
+    badgeTestTimer = setTimeout(() => { badgeTestTimer = 0; updateBadge(); }, 10000);
+  }).catch((e) => toast('아이콘 숫자 설정 실패: ' + (e.message || e)));
 });
 $('#notifTest').addEventListener('click', () => showNotif('[테스트] 할일 알림', '오늘 마감', 'rt-test'));
 $('#logout').addEventListener('click', () => {
