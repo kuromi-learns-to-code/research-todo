@@ -340,7 +340,7 @@ function buildNotes_(date, withHeader) {
   read_('Records').forEach(function (r) {
     if (r.deleted === '1' || r.date !== date) return;
     if (r.content) recs.push(MARK.rec + ' ' + label_(r.project, r.content));
-    nextItems_(r.next).forEach(function (x) { recs.push(MARK.next + ' ' + x); });
+    nextItems_(r.next).forEach(function (x) { recs.push(STEP_INDENT + MARK.next + ' ' + x); });   // 🔸는 기록 아래 들여쓰기
   });
 
   const blocks = [];

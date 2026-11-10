@@ -80,7 +80,7 @@ URL: `<Apps Script /exec>?api=notes&key=<KEY>&header=1` (앱의 ETC 탭 → 아�
 
 𝑨𝒏𝒂𝒍𝒚𝒔𝒊𝒔 𝑹𝒆𝒄𝒐𝒓𝒅𝒔
 🔶 [프로젝트] 기록
-🔸 추가 정보
+   🔸 추가 정보 (들여쓰기)
 ```
 놓친 날: URL 끝에 `&date=2026-11-06`
 
