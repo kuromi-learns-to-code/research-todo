@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Research Notes</title>
 <link rel="manifest" href="manifest.webmanifest">
+<!-- Windows 기본 이모지(검은 테두리) 대신 테두리 없는 Noto Color Emoji 사용. 아이폰·맥은 Apple 이모지 그대로 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="theme-color" content="#fff8f0">
@@ -25,7 +29,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
 body {
-  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
   -webkit-text-size-adjust: 100%; padding-bottom: env(safe-area-inset-bottom);
 }
 button, input, textarea { font: inherit; color: inherit; }
@@ -295,7 +299,7 @@ dialog .acts .sp { flex: 1; }
 
       <div class="card">
         <h2>기존 아이폰 메모 가져오기</h2>
-        <p class="help" style="margin-top:0">메모 내용을 그대로 붙여넣으세요. ✔︎·➔·🔶·🔸 줄(예전 ✅·➡️·▷·🔸도)을 인식합니다. 가장 최근 메모의 ➔(➡️) 항목이 현재 할일 목록이 됩니다.<br>
+        <p class="help" style="margin-top:0">메모 내용을 그대로 붙여넣으세요. ✔︎·➔·🔶·🔸 줄(예전 ✅·➡️·▷·✍🏻도)을 인식합니다. 가장 최근 메모의 ➔(➡️) 항목이 현재 할일 목록이 됩니다.<br>
           여러 날을 한 번에 넣을 때는 각 날짜 위에 <code>2026.11.06</code> 같은 날짜 줄을 넣으면 그 날짜로 저장됩니다. 같은 내용은 중복 저장되지 않습니다.</p>
         <div class="row" style="margin:12px 0 8px; align-items:center">
           <span style="font-size:14px; color:var(--muted); white-space:nowrap">날짜 줄이 없으면</span>
@@ -498,7 +502,7 @@ function stepListHtml(t) {
 }
 function repHtml(t) {
   if (!t.repeat || t.status !== 'open') return '';
-  return `<span class="rpt">🔁 ${repLabel(t.repeat)}${t.until ? ` ~${mmdd(t.until)}` : ''}</span>`;
+  return `<span class="rpt">↻ ${repLabel(t.repeat)}${t.until ? ` ~${mmdd(t.until)}` : ''}</span>`;
 }
 function remHtml(t) {
   if (!t.remind || t.status !== 'open') return '';
@@ -651,7 +655,7 @@ function renderTasks() {
       </button>
       <div class="tbody" data-act="edit">
         <div class="ttitle">${tagHtml(t.project)}${esc(t.title)}</div>
-        ${(t.status === 'open' && (t.due || t.remind || t.repeat)) || age > 0 ? `<div class="tmeta">${dueHtml(t)}${repHtml(t)}${remHtml(t)}${age > 0 ? `➡️ ${mmdd(t.created)}부터 · ${age}일째` : ''}</div>` : ''}
+        ${(t.status === 'open' && (t.due || t.remind || t.repeat)) || age > 0 ? `<div class="tmeta">${dueHtml(t)}${repHtml(t)}${remHtml(t)}${age > 0 ? `➔ ${mmdd(t.created)}부터 · ${age}일째` : ''}</div>` : ''}
         ${stepListHtml(t)}
       </div>
     </li>`;
@@ -881,10 +885,10 @@ function applyServerTask(t, srv) {
   const autoDone = srv._autoDone; delete srv._autoDone;
   Object.assign(t, srv);
   if (autoDone) toast('☑ 모든 단계를 마쳐 할일을 완료했습니다');
-  if (aligned) toast(`🔁 반복 요일에 맞춰 마감을 ${mmdd(srv.due)} (${WD[dowOf(srv.due)]})로 옮겼습니다`);
+  if (aligned) toast(`↻ 반복 요일에 맞춰 마감을 ${mmdd(srv.due)} (${WD[dowOf(srv.due)]})로 옮겼습니다`);
   if (next && !S.tasks.some((x) => x.id === next.id)) {
     S.tasks.push(next);
-    toast(`🔁 다음 회차: ${mmdd(next.due)} (${WD[dowOf(next.due)]})`);
+    toast(`↻ 다음 회차: ${mmdd(next.due)} (${WD[dowOf(next.due)]})`);
   }
   if (removed) S.tasks = S.tasks.filter((x) => x.id !== removed);
   renderTasks();
@@ -1268,7 +1272,7 @@ function renderSearch() {
   $('#qList').innerHTML = items.length ? items.slice(0, SEARCH_MAX).map((it) => {
     const o = it.o, tag = o.project ? `<span class="tag">${hl(o.project, tokens)}</span>` : '';
     if (it.kind === 'task') {
-      const head = o.status === 'done' ? `✅ ${mmdd(o.done)} 완료` : `➡️ 진행 중 · ${mmdd(o.created)}부터`;
+      const head = o.status === 'done' ? `✔︎ ${mmdd(o.done)} 완료` : `➔ 진행 중 · ${mmdd(o.created)}부터`;
       return `<li class="sres${o.status === 'done' ? ' done' : ''}" data-k="task" data-id="${esc(o.id)}">
         <div class="h">할일 · ${head}${o.status === 'open' && o.due ? ' · ' + esc(dueText(o)) : ''}</div>
         <div class="b">${tag}${hl(o.title, tokens)}</div></li>`;
@@ -1312,7 +1316,7 @@ $('#iRun').addEventListener('click', () => {
   call('apiImport', text, $('#iDate').value || S.today).then((r) => {
     $('#iResult').textContent = r.days
       ? `${r.days}일치 처리 — 할일 ${r.added}개 추가, ${r.completed}개 완료 처리, 분석기록 ${r.records}개 추가, 중복 ${r.skipped}개 건너뜀`
-      : '인식된 항목이 없습니다. ✔︎·➔·🔶·🔸(또는 예전 ✅·➡️·▷·🔸)로 시작하는 줄이 있는지 확인하세요.';
+      : '인식된 항목이 없습니다. ✔︎·➔·🔶·🔸(또는 예전 ✅·➡️·▷·✍🏻)로 시작하는 줄이 있는지 확인하세요.';
     if (r.days) { $('#iText').value = ''; load(true); }
   }).catch(fail).finally(() => { btn.disabled = false; btn.textContent = '가져오기'; });
 });
