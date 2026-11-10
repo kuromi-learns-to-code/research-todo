@@ -109,6 +109,11 @@ mark { background: #ffe38a; color: #1c1c1e; border-radius: 3px; padding: 0 1px; 
 .due.over { color: var(--danger); }
 .empty { color: var(--muted); font-size: 14px; padding: 12px 2px; }
 .divider { font-size: 12px; color: var(--muted); padding: 12px 2px 4px; border-top: 1px solid var(--line); }
+.fold { display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 10px; padding: 8px 10px; border: 0; border-radius: 8px; background: var(--tag-bg); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; text-align: left; }
+.fold .cnt { color: var(--muted); font-weight: 500; }
+.dgroup { font-size: 12px; color: var(--muted); padding: 12px 2px 2px; font-weight: 600; }
+.dgroup + .task, .dgroup + .rec { border-top: 0; }
+.more { padding: 10px 0 2px; text-align: center; }
 
 
 .rec-form { display: grid; gap: 8px; }
@@ -237,6 +242,7 @@ dialog .acts .sp { flex: 1; }
         </form>
         <div class="subhead"><span id="recListLabel"></span></div>
         <ul id="recList" class="list"></ul>
+        <ul id="pastList" class="list"></ul>
       </div>
     </section>
 
@@ -392,6 +398,9 @@ const S = {
   recDate: '', editRec: null, editTask: null,
   notesDate: '', header: store.get('rt.header') !== '0',  // 날짜별 메모 사용 → 기본값: 날짜 제목 포함
   loadedAt: 0,
+  doneOpen: store.get('rt.doneOpen') !== '0', doneLimit: 20,   // 완료됨 목록 (펼침 상태 기억, 20개씩 더 보기)
+  pastOpen: store.get('rt.pastOpen') !== '0', pastLimit: 20,   // 지난 분석 기록
+  backToToday: false,
 };
 
 const $ = (s) => document.querySelector(s);
@@ -539,14 +548,25 @@ function renderProjects() {
 }
 
 function visibleTasks() {
-  return S.tasks.filter((t) => t.status === 'open' || (t.status === 'done' && t.done === S.today));
+  return S.tasks.filter((t) => t.status === 'open' || t.status === 'done');
+}
+// 날짜별 묶음 머리글을 넣어 목록 HTML 생성
+function grouped(items, dayOf, rowFn) {
+  let last = '', out = '';
+  items.forEach((x) => {
+    const d = dayOf(x);
+    if (d !== last) { out += `<li class="dgroup">${d === S.today ? '오늘 · ' : ''}${koDate(d)}</li>`; last = d; }
+    out += rowFn(x);
+  });
+  return out;
 }
 
 function renderTasks() {
   const vis = visibleTasks();
   const open = vis.filter((t) => t.status === 'open');
-  const done = vis.filter((t) => t.status === 'done');
-  $('#taskCount').textContent = `${open.length}개 남음 · 오늘 ${done.length}개 완료`;
+  const done = vis.filter((t) => t.status === 'done')
+    .sort((a, b) => b.done.localeCompare(a.done) || String(b.updated || '').localeCompare(String(a.updated || '')));
+  $('#taskCount').textContent = `${open.length}개 남음 · 오늘 ${done.filter((t) => t.done === S.today).length}개 완료`;
 
   const projs = [];
   vis.forEach((t) => { if (t.project && projs.indexOf(t.project) < 0) projs.push(t.project); });
@@ -575,7 +595,13 @@ function renderTasks() {
   const d = done.filter(f);
   let html = o.map(row).join('');
   if (!o.length) html = `<li class="empty">${S.filter ? '이 프로젝트에 남은 할일이 없습니다.' : '남은 할일이 없습니다. 🎉'}</li>`;
-  if (d.length) html += `<li class="divider">오늘 완료</li>` + d.map(row).join('');
+  if (d.length) {
+    html += `<li><button type="button" class="fold" data-act="donefold">${S.doneOpen ? '▾' : '▸'} 완료됨 <span class="cnt">${d.length}</span></button></li>`;
+    if (S.doneOpen) {
+      html += grouped(d.slice(0, S.doneLimit), (t) => t.done, row);
+      if (d.length > S.doneLimit) html += `<li class="more"><button type="button" class="btn ghost sm" data-act="donemore">더 보기 (${d.length - S.doneLimit}개 더)</button></li>`;
+    }
+  }
   $('#taskList').innerHTML = html;
   updateBadge();
 }
@@ -632,16 +658,32 @@ function renderRecords() {
   $('#rDate').value = S.recDate;
   const list = S.records.filter((r) => r.date === S.recDate);
   $('#recListLabel').textContent = (S.recDate === S.today ? '오늘' : koDate(S.recDate)) + ` 기록 ${list.length}개`;
-  $('#recList').innerHTML = list.length ? list.map((r) => `
-    <li class="rec${S.editRec === r.id ? ' editing' : ''}" data-id="${esc(r.id)}">
-      ${r.content ? `<div class="c">▷ ${tagHtml(r.project)}${esc(r.content)}</div>` : ''}
-      ${r.next.split('\n').filter(Boolean).map((x) => `<div class="n">✍🏻 ${esc(x)}</div>`).join('')}
-      <button type="button" class="btn ghost sm addn" data-act="addnext">+ ✍🏻</button>
-    </li>`).join('') : '<li class="empty">아직 기록이 없습니다.</li>';
+  $('#recList').innerHTML = list.length ? list.map((r) => recRow(r, true)).join('') : '<li class="empty">아직 기록이 없습니다.</li>';
+  renderPast();
   const editing = !!S.editRec;
   $('#rDelete').hidden = !editing;
   $('#rCancel').hidden = !editing;
   $('#rSave').textContent = editing ? '수정 저장' : '기록 저장';
+}
+
+function recRow(r, withAdd) {
+  return `<li class="rec${S.editRec === r.id ? ' editing' : ''}" data-id="${esc(r.id)}">
+      ${r.content ? `<div class="c">▷ ${tagHtml(r.project)}${esc(r.content)}</div>` : ''}
+      ${r.next.split('\n').filter(Boolean).map((x) => `<div class="n">✍🏻 ${esc(x)}</div>`).join('')}
+      ${withAdd ? '<button type="button" class="btn ghost sm addn" data-act="addnext">+ ✍🏻</button>' : ''}
+    </li>`;
+}
+// 지금 보고 있는 날짜 외의 분석 기록 (최근 순, 날짜별 묶음)
+function renderPast() {
+  const past = S.records.filter((r) => r.date !== S.recDate)
+    .sort((a, b) => b.date.localeCompare(a.date) || String(b.updated || '').localeCompare(String(a.updated || '')));
+  if (!past.length) { $('#pastList').innerHTML = ''; return; }
+  let html = `<li><button type="button" class="fold" data-act="pastfold">${S.pastOpen ? '▾' : '▸'} 지난 기록 <span class="cnt">${past.length}</span></button></li>`;
+  if (S.pastOpen) {
+    html += grouped(past.slice(0, S.pastLimit), (r) => r.date, (r) => recRow(r, false));
+    if (past.length > S.pastLimit) html += `<li class="more"><button type="button" class="btn ghost sm" data-act="pastmore">더 보기 (${past.length - S.pastLimit}개 더)</button></li>`;
+  }
+  $('#pastList').innerHTML = html;
 }
 
 function scUrl() {
@@ -763,6 +805,10 @@ $('#chips').addEventListener('click', (e) => {
 
 $('#taskList').addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]');
+  if (el && el.dataset.act === 'donefold') {
+    S.doneOpen = !S.doneOpen; S.doneLimit = 20; store.set('rt.doneOpen', S.doneOpen ? '1' : '0'); renderTasks(); return;
+  }
+  if (el && el.dataset.act === 'donemore') { S.doneLimit += 20; renderTasks(); return; }
   const li = e.target.closest('li[data-id]');
   if (!el || !li) return;
   const t = S.tasks.find((x) => x.id === li.dataset.id);
@@ -847,6 +893,7 @@ $('#rNexts').addEventListener('click', (e) => {
 
 function resetRecForm() {
   S.editRec = null;
+  if (S.backToToday) { S.recDate = S.today; S.backToToday = false; }
   $('#rContent').value = '';
   setNexts('');
   renderRecords();
@@ -856,6 +903,7 @@ setNexts('');
 $('#rDate').addEventListener('change', () => {
   if (!$('#rDate').value) return;
   S.recDate = $('#rDate').value;
+  S.backToToday = false;   // 날짜를 직접 바꿨으면 그 날짜에 머무름
   if (S.editRec) resetRecForm(); else renderRecords();
 });
 
@@ -898,7 +946,23 @@ $('#recList').addEventListener('click', (e) => {
   } else $('#rContent').focus();
 });
 
-function editRecord(r) {
+$('#pastList').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]');
+  if (el && el.dataset.act === 'pastfold') {
+    S.pastOpen = !S.pastOpen; S.pastLimit = 20; store.set('rt.pastOpen', S.pastOpen ? '1' : '0'); renderPast(); return;
+  }
+  if (el && el.dataset.act === 'pastmore') { S.pastLimit += 20; renderPast(); return; }
+  const li = e.target.closest('li[data-id]');
+  const r = li && S.records.find((x) => x.id === li.dataset.id);
+  if (!r) return;
+  editRecord(r, true);
+  $('#recForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  $('#rContent').focus({ preventScroll: true });
+});
+
+/** 기록을 폼에 불러와 수정. backToToday: 저장/취소 후 원래 날짜(오늘)로 돌아감 */
+function editRecord(r, backToToday) {
+  if (backToToday && r.date !== S.recDate) S.backToToday = true;
   S.editRec = r.id;
   S.recDate = r.date;
   $('#rProj').value = r.project;
@@ -1017,7 +1081,7 @@ $('#qList').addEventListener('click', (e) => {
     const r = S.records.find((x) => x.id === li.dataset.id);
     if (!r) return;
     showTab('today');
-    editRecord(r);
+    editRecord(r, true);
     $('#recForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 });
