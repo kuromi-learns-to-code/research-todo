@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Research To-do</title>
+<title>Research Notes</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -11,7 +11,7 @@
 <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="To-do">
+<meta name="apple-mobile-web-app-title" content="Research Notes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root {
@@ -87,6 +87,14 @@ ul.list { list-style: none; margin: 0; padding: 0; }
 .duebar .field.due-date { width: auto; flex: 0 1 auto; padding: 4px 8px; font-size: 14px; border-radius: 999px; }
 .duebar .field.due-date.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .duebar .clear { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; padding: 4px; }
+.sres { padding: 10px 2px; border-top: 1px solid var(--line); cursor: pointer; }
+.sres:first-child { border-top: 0; }
+.sres .h { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+.sres .b, .sres .n { white-space: pre-wrap; word-break: break-word; }
+.sres .n { color: var(--muted); }
+.sres.done .b { color: var(--muted); }
+mark { background: #ffe38a; color: #1c1c1e; border-radius: 3px; padding: 0 1px; }
+@media (prefers-color-scheme: dark) { mark { background: #7a6420; color: #fff; } }
 .rmd { display: inline-block; font-size: 12px; color: var(--muted); margin-right: 8px; }
 .rmd.past { text-decoration: line-through; }
 .duebar .field.dt { width: auto; flex: 0 1 auto; padding: 4px 8px; font-size: 14px; border-radius: 999px; }
@@ -151,7 +159,7 @@ dialog .acts .sp { flex: 1; }
 <div class="wrap">
 
   <div id="gate" class="gate" hidden>
-    <h1 style="font-size:20px">Research To-do</h1>
+    <h1 style="font-size:20px">Research Notes</h1>
     <p>처음 한 번만 연결 정보를 입력합니다.<br>다른 기기의 <b>노트 탭 → 기기 연결 링크</b>를 붙여넣어도 됩니다.</p>
     <form id="gateForm" style="display:grid; gap:8px; margin-top:12px">
       <input id="gateApi" class="field" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Apps Script 웹앱 URL (…/exec)">
@@ -164,7 +172,7 @@ dialog .acts .sp { flex: 1; }
   <div id="app" hidden>
     <header class="top">
       <div>
-        <h1>Research To-do</h1>
+        <h1>Research Notes</h1>
         <div class="sub" id="todayLabel"></div>
       </div>
       <button class="icon-btn" id="refreshBtn" aria-label="새로고침" title="새로고침">
@@ -175,7 +183,7 @@ dialog .acts .sp { flex: 1; }
     <nav class="tabs">
       <button data-tab="today" class="on">오늘</button>
       <button data-tab="notes">노트</button>
-      <button data-tab="import">가져오기</button>
+      <button data-tab="import">검색 및 가져오기</button>
     </nav>
 
     <div id="loading" class="loading">불러오는 중…</div>
@@ -286,8 +294,19 @@ dialog .acts .sp { flex: 1; }
       </div>
     </section>
 
-    <!-- ============ 가져오기 ============ -->
+    <!-- ============ 검색 및 가져오기 ============ -->
     <section id="tab-import" hidden>
+      <div class="card">
+        <h2>검색 <span class="count" id="qInfo"></span></h2>
+        <input id="qInput" type="search" class="field" placeholder="할일·분석 기록·프로젝트 검색 (띄어쓰기로 여러 단어)" autocomplete="off" enterkeyhint="search">
+        <div class="chips" id="qKind">
+          <button type="button" class="chip on" data-k="">전체</button>
+          <button type="button" class="chip" data-k="task">할일</button>
+          <button type="button" class="chip" data-k="rec">분석 기록</button>
+        </div>
+        <ul id="qList" class="list"></ul>
+      </div>
+
       <div class="card">
         <h2>기존 아이폰 메모 가져오기</h2>
         <p class="help" style="margin-top:0">메모 내용을 그대로 붙여넣으세요. ✅·➡️·▷·✍🏻 줄을 인식합니다. 가장 최근 메모의 ➡️ 항목이 현재 할일 목록이 됩니다.<br>
@@ -504,6 +523,7 @@ function renderAll() {
   tRem.sync();
   renderRecords();
   if (S.tab === 'notes') renderNotes();
+  if (S.tab === 'import') renderSearch();
 }
 
 function projectsByRecency() {
@@ -749,16 +769,18 @@ $('#taskList').addEventListener('click', (e) => {
   if (!t) return;
   if (el.dataset.act === 'toggle') {
     saveTask(t, t.status === 'done' ? { status: 'open', done: '' } : { status: 'done', done: S.today }).catch(() => {});
-  } else {
-    S.editTask = t.id;
-    $('#dProj').value = t.project;
-    $('#dTitle').value = t.title;
-    dDue.set(t.due);
-    dRem.set(t.remind);
-    $('#dMeta').textContent = `${mmdd(t.created)} 생성` + (t.done ? ` · ${mmdd(t.done)} 완료` : '');
-    $('#taskDlg').showModal();
-  }
+  } else openTaskDialog(t);
 });
+
+function openTaskDialog(t) {
+  S.editTask = t.id;
+  $('#dProj').value = t.project;
+  $('#dTitle').value = t.title;
+  dDue.set(t.due);
+  dRem.set(t.remind);
+  $('#dMeta').textContent = `${mmdd(t.created)} 생성` + (t.done ? ` · ${mmdd(t.done)} 완료` : '');
+  $('#taskDlg').showModal();
+}
 
 $('#taskDlgForm').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -866,11 +888,7 @@ $('#recList').addEventListener('click', (e) => {
   if (!li) return;
   const r = S.records.find((x) => x.id === li.dataset.id);
   if (!r) return;
-  S.editRec = r.id;
-  $('#rProj').value = r.project;
-  $('#rContent').value = r.content;
-  setNexts(r.next);
-  renderRecords();
+  editRecord(r);
   if (e.target.closest('[data-act=addnext]')) {
     // 기록 아래 '+ ✍🏻' : 빈 ✍🏻 칸을 하나 더 열어 바로 입력
     const rows = $('#rNexts').querySelectorAll('textarea');
@@ -879,6 +897,15 @@ $('#recList').addEventListener('click', (e) => {
     $('#recForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
   } else $('#rContent').focus();
 });
+
+function editRecord(r) {
+  S.editRec = r.id;
+  S.recDate = r.date;
+  $('#rProj').value = r.project;
+  $('#rContent').value = r.content;
+  setNexts(r.next);
+  renderRecords();
+}
 
 $('#rCancel').addEventListener('click', resetRecForm);
 $('#rDelete').addEventListener('click', () => {
@@ -932,6 +959,69 @@ function copyText(text) {
   } else legacy();
 }
 
+/* ---------------- 검색 ---------------- */
+let qKind = '';
+const SEARCH_MAX = 100;
+function searchTokens() {
+  return $('#qInput').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+}
+function hl(text, tokens) {
+  let h = esc(text);
+  if (!tokens.length) return h;
+  const re = new RegExp('(' + tokens.map((t) => esc(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
+  return h.replace(re, '<mark>$1</mark>');
+}
+function renderSearch() {
+  const tokens = searchTokens();
+  if (!tokens.length) { $('#qList').innerHTML = ''; $('#qInfo').textContent = ''; return; }
+  const hit = (txt) => { const l = txt.toLowerCase(); return tokens.every((t) => l.indexOf(t) >= 0); };
+  const items = [];
+  if (qKind !== 'rec') S.tasks.forEach((t) => {
+    if (t.status !== 'deleted' && hit(`${t.project} ${t.title}`)) items.push({ kind: 'task', date: t.done || t.created, o: t });
+  });
+  if (qKind !== 'task') S.records.forEach((r) => {
+    if (hit(`${r.project} ${r.content} ${r.next}`)) items.push({ kind: 'rec', date: r.date, o: r });
+  });
+  items.sort((a, b) => b.date.localeCompare(a.date));
+  $('#qInfo').textContent = items.length > SEARCH_MAX ? `${items.length}개 중 최근 ${SEARCH_MAX}개` : `${items.length}개`;
+  $('#qList').innerHTML = items.length ? items.slice(0, SEARCH_MAX).map((it) => {
+    const o = it.o, tag = o.project ? `<span class="tag">${hl(o.project, tokens)}</span>` : '';
+    if (it.kind === 'task') {
+      const head = o.status === 'done' ? `✅ ${mmdd(o.done)} 완료` : `➡️ 진행 중 · ${mmdd(o.created)}부터`;
+      return `<li class="sres${o.status === 'done' ? ' done' : ''}" data-k="task" data-id="${esc(o.id)}">
+        <div class="h">할일 · ${head}${o.status === 'open' && o.due ? ' · ' + esc(dueText(o)) : ''}</div>
+        <div class="b">${tag}${hl(o.title, tokens)}</div></li>`;
+    }
+    return `<li class="sres" data-k="rec" data-id="${esc(o.id)}">
+      <div class="h">분석 기록 · ${koDate(o.date)}</div>
+      ${o.content ? `<div class="b">▷ ${tag}${hl(o.content, tokens)}</div>` : ''}
+      ${o.next.split('\n').filter(Boolean).map((x) => `<div class="n">✍🏻 ${hl(x, tokens)}</div>`).join('')}</li>`;
+  }).join('') : '<li class="empty">검색 결과가 없습니다.</li>';
+}
+let qTimer;
+$('#qInput').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(renderSearch, 120); });
+$('#qKind').addEventListener('click', (e) => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  qKind = c.dataset.k;
+  document.querySelectorAll('#qKind .chip').forEach((x) => x.classList.toggle('on', x === c));
+  renderSearch();
+});
+$('#qList').addEventListener('click', (e) => {
+  const li = e.target.closest('li[data-id]');
+  if (!li) return;
+  if (li.dataset.k === 'task') {
+    const t = S.tasks.find((x) => x.id === li.dataset.id);
+    if (t) openTaskDialog(t);
+  } else {
+    const r = S.records.find((x) => x.id === li.dataset.id);
+    if (!r) return;
+    showTab('today');
+    editRecord(r);
+    $('#recForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+});
+
 /* ---------------- 가져오기 ---------------- */
 $('#iRun').addEventListener('click', () => {
   const text = $('#iText').value;
@@ -950,6 +1040,7 @@ $('#iRun').addEventListener('click', () => {
 document.querySelectorAll('nav.tabs button').forEach((b) => b.addEventListener('click', () => {
   showTab(b.dataset.tab);
   if (b.dataset.tab === 'notes') renderNotes();
+  if (b.dataset.tab === 'import') { renderSearch(); if (matchMedia('(pointer: fine)').matches) $('#qInput').focus(); }
 }));
 $('#refreshBtn').addEventListener('click', () => load());
 $('#gateForm').addEventListener('submit', (e) => {

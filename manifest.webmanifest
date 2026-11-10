@@ -1,6 +1,6 @@
 {
-  "name": "Research To-do",
-  "short_name": "To-do",
+  "name": "Research Notes",
+  "short_name": "Research Notes",
   "description": "연구 할일 · 분석 기록",
   "lang": "ko",
   "start_url": "./",

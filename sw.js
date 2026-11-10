@@ -2,7 +2,7 @@
 // - 같은 사이트 파일: 네트워크 우선(항상 최신), 오프라인이면 캐시
 // - Apps Script API 호출은 건드리지 않음
 // - 알림 클릭 시 앱 창으로 이동
-const CACHE = 'rt-v1';
+const CACHE = 'rt-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
