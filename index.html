@@ -29,7 +29,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
 body {
-  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Noto Color Emoji", "Apple Color Emoji", sans-serif;
   -webkit-text-size-adjust: 100%; padding-bottom: env(safe-area-inset-bottom);
 }
 button, input, textarea { font: inherit; color: inherit; }
@@ -71,10 +71,11 @@ textarea.field { resize: vertical; min-height: 64px; line-height: 1.45; }
 ul.list { list-style: none; margin: 0; padding: 0; }
 .task { display: flex; align-items: flex-start; gap: 10px; padding: 10px 2px; border-top: 1px solid var(--line); }
 .task:first-child { border-top: 0; }
-.check { flex: 0 0 auto; width: 24px; height: 24px; margin-top: 1px; border-radius: 50%; border: 2px solid var(--muted); background: transparent; cursor: pointer; display: grid; place-items: center; padding: 0; }
-.check svg { width: 14px; height: 14px; opacity: 0; }
-.task.done .check { background: var(--accent); border-color: var(--accent); }
-.task.done .check svg { opacity: 1; color: var(--accent-text); }
+.emo { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline-block; }
+/* 상태 아이콘: ✅ 완료 / ▶️ 진행중 / 💤 미룸(마감 지남) — 누르면 완료 ↔ 되돌리기 */
+.check { flex: 0 0 auto; width: 28px; height: 28px; margin-top: -2px; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; padding: 0; border-radius: 8px; }
+.check .emo { width: 22px; height: 22px; vertical-align: 0; }
+.check:hover { background: var(--accent-weak); }
 .tbody { flex: 1; min-width: 0; cursor: pointer; }
 .ttitle { word-break: break-word; }
 .task.done .ttitle { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--muted); }
@@ -95,24 +96,21 @@ mark { background: #ffe08a; color: #4a3329; border-radius: 3px; padding: 0 1px; 
 .stp { display: inline-block; font-size: 12px; color: var(--muted); margin-right: 8px; font-weight: 600; }
 .tsteps { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
 .tstep { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; }
-.tstep .scheck { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; border: 1.5px solid var(--muted); background: transparent; padding: 0; cursor: pointer; display: grid; place-items: center; }
-.tstep .scheck svg { width: 11px; height: 11px; opacity: 0; }
-.tstep.done .scheck { background: var(--accent); border-color: var(--accent); }
-.tstep.done .scheck svg { opacity: 1; color: var(--accent-text); }
+.tstep .scheck { flex: 0 0 auto; width: 20px; height: 20px; border: 0; background: transparent; padding: 0; cursor: pointer; display: grid; place-items: center; }
+.tstep .scheck .emo { width: 16px; height: 16px; vertical-align: 0; }
 .tstep.done span { color: var(--muted); text-decoration: line-through; }
 .steps { display: grid; gap: 4px; }
 .step .sdue { flex: 0 0 auto; width: 132px; padding: 5px 6px; font-size: 13px; }
 .step .sdue.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
-.step .scal { flex: 0 0 auto; border: 1px dashed var(--line); background: transparent; border-radius: 8px; padding: 5px 7px; cursor: pointer; font-size: 13px; color: var(--muted); }
+.step .scal { flex: 0 0 auto; border: 1px dashed var(--line); background: transparent; border-radius: 8px; padding: 4px 6px; cursor: pointer; line-height: 0; }
+.step .scal .emo { width: 18px; height: 18px; vertical-align: 0; }
 .sdl { font-size: 12px; color: var(--muted); margin-left: 6px; font-weight: 600; white-space: nowrap; }
 .sdl.soon { color: var(--warn); }
 .sdl.over { color: var(--danger); }
 #dAutoDue { margin-top: -2px; }
 .step { display: flex; align-items: center; gap: 8px; }
-.step .check { width: 20px; height: 20px; margin: 0; border-width: 2px; }
-.step .check svg { width: 12px; height: 12px; }
-.step.done .check { background: var(--accent); border-color: var(--accent); }
-.step.done .check svg { opacity: 1; color: var(--accent-text); }
+.step .check { width: 24px; height: 24px; margin: 0; }
+.step .check .emo { width: 18px; height: 18px; }
 .step .field { padding: 6px 9px; font-size: 15px; }
 .step.done .field { color: var(--muted); text-decoration: line-through; }
 .step .clear { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px; flex-shrink: 0; }
@@ -267,11 +265,11 @@ dialog .acts .sp { flex: 1; }
             <input id="rDate" type="date" class="field" style="flex:0 0 auto;width:auto">
             <input id="rProj" class="field" list="projList" placeholder="프로젝트" autocomplete="off">
           </div>
-          <div class="lbl">🔶 기록</div>
+          <div class="lbl"><img class="emo" src="icons/emoji/1f536.svg" alt="🔶" draggable="false"> 기록</div>
           <textarea id="rContent" class="field" rows="3"></textarea>
-          <div class="lbl">🔸 추가 정보</div>
+          <div class="lbl"><img class="emo" src="icons/emoji/1f538.svg" alt="🔸" draggable="false"> 추가 정보</div>
           <div id="rNexts" class="nexts"></div>
-          <button type="button" id="rAddNext" class="btn ghost sm addnext">+ 🔸 추가</button>
+          <button type="button" id="rAddNext" class="btn ghost sm addnext">+ <img class="emo" src="icons/emoji/1f538.svg" alt="🔸" draggable="false"> 추가</button>
           <div class="acts">
             <button type="button" id="rDelete" class="btn danger" hidden>삭제</button>
             <button type="button" id="rCancel" class="btn ghost" hidden>취소</button>
@@ -299,13 +297,13 @@ dialog .acts .sp { flex: 1; }
 
       <div class="card">
         <h2>기존 아이폰 메모 가져오기</h2>
-        <p class="help" style="margin-top:0">메모 내용을 그대로 붙여넣으세요. ✔︎·➔·🔶·🔸 줄(예전 ✅·➡️·▷·✍🏻도)을 인식합니다. 가장 최근 메모의 ➔(➡️) 항목이 현재 할일 목록이 됩니다.<br>
+        <p class="help" style="margin-top:0">메모 내용을 그대로 붙여넣으세요. <img class="emo" src="icons/emoji/2705.svg" alt="✅" draggable="false">·<img class="emo" src="icons/emoji/25b6.svg" alt="▶️" draggable="false">·<img class="emo" src="icons/emoji/1f4a4.svg" alt="💤" draggable="false">·<img class="emo" src="icons/emoji/1f536.svg" alt="🔶" draggable="false">·<img class="emo" src="icons/emoji/1f538.svg" alt="🔸" draggable="false"> 줄(예전 기호 ✔︎·➔·😡·➡️·▷·✍🏻도)을 인식합니다. 가장 최근 메모의 <img class="emo" src="icons/emoji/25b6.svg" alt="▶️" draggable="false">·<img class="emo" src="icons/emoji/1f4a4.svg" alt="💤" draggable="false"> 항목이 현재 할일 목록이 됩니다.<br>
           여러 날을 한 번에 넣을 때는 각 날짜 위에 <code>2026.11.06</code> 같은 날짜 줄을 넣으면 그 날짜로 저장됩니다. 같은 내용은 중복 저장되지 않습니다.</p>
         <div class="row" style="margin:12px 0 8px; align-items:center">
           <span style="font-size:14px; color:var(--muted); white-space:nowrap">날짜 줄이 없으면</span>
           <input id="iDate" type="date" class="field" style="width:auto">
         </div>
-        <textarea id="iText" class="field" rows="10" placeholder="𝑹𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝑻𝒐-𝒅𝒐&#10;✔︎ [Clustering] 공저자 검토 확인&#10;➔ [Prediction] 공저자 검토 확인&#10;…"></textarea>
+        <textarea id="iText" class="field" rows="10" placeholder="𝑹𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝑻𝒐-𝒅𝒐&#10;✅ [Clustering] 공저자 검토 확인&#10;▶️ [Prediction] 공저자 검토 확인&#10;…"></textarea>
         <div class="row" style="justify-content:flex-end; margin-top:10px">
           <button class="btn" id="iRun">가져오기</button>
         </div>
@@ -333,7 +331,7 @@ dialog .acts .sp { flex: 1; }
           </div>
         </div>
         <div class="setting">
-          <div><div class="t">아이콘 숫자</div><div class="s">오늘 마감 + 마감 지난(😡) 할일 개수 · <span id="badgeState"></span></div></div>
+          <div><div class="t">아이콘 숫자</div><div class="s">오늘 마감 + 미룸(<img class="emo" src="icons/emoji/1f4a4.svg" alt="💤" draggable="false">, 마감 지남) 할일 개수 · <span id="badgeState"></span></div></div>
           <button class="btn ghost sm" id="badgeTest" style="flex-shrink:0">테스트</button>
         </div>
         <div class="setting">
@@ -453,7 +451,7 @@ const dueFor = (kind) => kind === 'today' ? S.today : kind === 'tomorrow' ? addD
 function dueHtml(t) {
   if (!t.due || t.status !== 'open') return '';
   const d = diffDays(S.today, t.due);
-  if (d < 0) return `<span class="due over">😡 ${mmdd(t.due)} 마감 · ${-d}일 지남</span>`;
+  if (d < 0) return `<span class="due over">${mmdd(t.due)} 마감 · ${-d}일 지남</span>`;
   if (d === 0) return '<span class="due soon">오늘 마감</span>';
   if (d === 1) return '<span class="due soon">내일 마감</span>';
   return `<span class="due">${mmdd(t.due)} (${WD[dowOf(t.due)]}) 마감</span>`;
@@ -486,7 +484,7 @@ function stepDueHtml(x) {
   if (!x.due) return '';
   if (x.d) return `<span class="sdl">${mmdd(x.due)}</span>`;
   const d = diffDays(S.today, x.due);
-  if (d < 0) return `<span class="sdl over">😡 ${mmdd(x.due)}</span>`;
+  if (d < 0) return `<span class="sdl over">${mmdd(x.due)} 지남</span>`;
   if (d === 0) return '<span class="sdl soon">오늘</span>';
   if (d === 1) return '<span class="sdl soon">내일</span>';
   return `<span class="sdl">~${mmdd(x.due)}</span>`;
@@ -496,9 +494,7 @@ function stepListHtml(t) {
   const st = stepsOf(t);
   if (!st.length) return '';
   return `<ul class="tsteps">${st.map((x, i) => `<li class="tstep${x.d ? ' done' : ''}">
-      <button type="button" class="scheck" data-act="steptoggle" data-i="${i}" aria-label="${x.d ? '단계 체크 해제' : '단계 체크'}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
-      </button><span>${esc(x.t)}${stepDueHtml(x)}</span></li>`).join('')}</ul>`;
+      <button type="button" class="scheck" data-act="steptoggle" data-i="${i}" aria-label="${x.d ? '단계 체크 해제' : '단계 체크'}">${em(stateOf(x.d, x.due))}</button><span>${esc(x.t)}${stepDueHtml(x)}</span></li>`).join('')}</ul>`;
 }
 function repHtml(t) {
   if (!t.repeat || t.status !== 'open') return '';
@@ -508,16 +504,21 @@ function remHtml(t) {
   if (!t.remind || t.status !== 'open') return '';
   const [day, hm] = t.remind.split('T');
   const label = day === S.today ? `오늘 ${hm}` : day === addDays(S.today, 1) ? `내일 ${hm}` : `${mmdd(day)} ${hm}`;
-  return `<span class="rmd${t.remind <= nowDT() ? ' past' : ''}">🔔 ${label}</span>`;
+  return `<span class="rmd${t.remind <= nowDT() ? ' past' : ''}">${em('bell')} ${label}</span>`;
 }
 function dueText(t) {
   if (!t.due) return '';
   const d = diffDays(S.today, t.due);
-  if (d < 0) return `😡 ${mmdd(t.due)} 마감 · ${-d}일 지남`;
+  if (d < 0) return `${mmdd(t.due)} 마감 · ${-d}일 지남`;
   if (d === 0) return '오늘 마감';
   if (d === 1) return '내일 마감';
   return `${mmdd(t.due)} (${WD[dowOf(t.due)]}) 마감`;
 }
+// 이모지는 기기 글꼴 대신 테두리 없는 Noto 이모지 그림으로 (PC·아이폰 동일)
+const EMO = { done: ['2705', '✅'], open: ['25b6', '▶️'], late: ['1f4a4', '💤'], rec: ['1f536', '🔶'], next: ['1f538', '🔸'], bell: ['1f514', '🔔'], cal: ['1f4c5', '📅'] };
+const em = (k) => `<img class="emo" src="icons/emoji/${EMO[k][0]}.svg" alt="${EMO[k][1]}" draggable="false">`;
+/** 할일·단계 상태: done ✅ / late 💤 (마감 지남) / open ▶️ */
+const stateOf = (doneFlag, due) => doneFlag ? 'done' : (due && due < S.today ? 'late' : 'open');
 const tagHtml = (p) => (p ? `<span class="tag">${esc(p)}</span>` : '');
 
 function call(fn, ...args) {
@@ -650,12 +651,10 @@ function renderTasks() {
   const row = (t) => {
     const age = t.status === 'open' ? diffDays(t.created, S.today) : 0;
     return `<li class="task${t.status === 'done' ? ' done' : ''}" data-id="${esc(t.id)}">
-      <button class="check" data-act="toggle" aria-label="${t.status === 'done' ? '완료 취소' : '완료'}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
-      </button>
+      <button class="check" data-act="toggle" aria-label="${t.status === 'done' ? '완료 취소' : '완료'}">${em(stateOf(t.status === 'done', t.due))}</button>
       <div class="tbody" data-act="edit">
         <div class="ttitle">${tagHtml(t.project)}${esc(t.title)}</div>
-        ${(t.status === 'open' && (t.due || t.remind || t.repeat)) || age > 0 ? `<div class="tmeta">${dueHtml(t)}${repHtml(t)}${remHtml(t)}${age > 0 ? `➔ ${mmdd(t.created)}부터 · ${age}일째` : ''}</div>` : ''}
+        ${(t.status === 'open' && (t.due || t.remind || t.repeat)) || age > 0 ? `<div class="tmeta">${dueHtml(t)}${repHtml(t)}${remHtml(t)}${age > 0 ? `${mmdd(t.created)}부터 · ${age}일째` : ''}</div>` : ''}
         ${stepListHtml(t)}
       </div>
     </li>`;
@@ -667,7 +666,7 @@ function renderTasks() {
   const dToday = d.filter((t) => t.done === S.today);     // 오늘 완료: 항상 표시
   const dPast = d.filter((t) => t.done !== S.today);      // 이전 완료: 접기/펼치기 (기본 접힘)
   let html = o.map(row).join('');
-  if (!o.length) html = `<li class="empty">${S.filter ? '이 프로젝트에 남은 할일이 없습니다.' : '남은 할일이 없습니다. 🎉'}</li>`;
+  if (!o.length) html = `<li class="empty">${S.filter ? '이 프로젝트에 남은 할일이 없습니다.' : '남은 할일이 없습니다.'}</li>`;
   if (dToday.length) html += `<li class="divider">오늘 완료</li>` + dToday.map(row).join('');
   if (dPast.length) {
     html += `<li><button type="button" class="fold" data-act="donefold">${S.doneOpen ? '▾' : '▸'} 완료됨 <span class="cnt">${dPast.length}</span></button></li>`;
@@ -709,8 +708,8 @@ function renderNotifState() {
 }
 function showNotif(title, body, tag) {
   const opts = { body, tag, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', silent: true, renotify: true };
-  if (!notifSupported() || Notification.permission !== 'granted') { toast('🔔 ' + title); return; }
-  const fallback = () => { try { new Notification(title, opts); } catch (e) { toast('🔔 ' + title); } };
+  if (!notifSupported() || Notification.permission !== 'granted') { toast('알림: ' + title); return; }
+  const fallback = () => { try { new Notification(title, opts); } catch (e) { toast('알림: ' + title); } };
   if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
     navigator.serviceWorker.getRegistration().then((reg) => (reg ? reg.showNotification(title, opts) : fallback())).catch(fallback);
   } else fallback();
@@ -747,9 +746,9 @@ function renderRecords() {
 
 function recRow(r, withAdd) {
   return `<li class="rec${S.editRec === r.id ? ' editing' : ''}" data-id="${esc(r.id)}">
-      ${r.content ? `<div class="c">🔶 ${tagHtml(r.project)}${esc(r.content)}</div>` : ''}
-      ${r.next.split('\n').filter(Boolean).map((x) => `<div class="n">🔸 ${esc(x)}</div>`).join('')}
-      ${withAdd ? '<button type="button" class="btn ghost sm addn" data-act="addnext">+ 🔸</button>' : ''}
+      ${r.content ? `<div class="c">${em('rec')} ${tagHtml(r.project)}${esc(r.content)}</div>` : ''}
+      ${r.next.split('\n').filter(Boolean).map((x) => `<div class="n">${em('next')} ${esc(x)}</div>`).join('')}
+      ${withAdd ? `<button type="button" class="btn ghost sm addn" data-act="addnext">+ ${em('next')}</button>` : ''}
     </li>`;
 }
 // 지금 보고 있는 날짜 외의 분석 기록 (최근 순, 날짜별 묶음)
@@ -884,7 +883,7 @@ function applyServerTask(t, srv) {
   const aligned = t.status === 'open' && srv.repeat && t.due && srv.due !== t.due;
   const autoDone = srv._autoDone; delete srv._autoDone;
   Object.assign(t, srv);
-  if (autoDone) toast('☑ 모든 단계를 마쳐 할일을 완료했습니다');
+  if (autoDone) toast('모든 단계를 마쳐 할일을 완료했습니다');
   if (aligned) toast(`↻ 반복 요일에 맞춰 마감을 ${mmdd(srv.due)} (${WD[dowOf(srv.due)]})로 옮겼습니다`);
   if (next && !S.tasks.some((x) => x.id === next.id)) {
     S.tasks.push(next);
@@ -966,12 +965,10 @@ function updateAutoDue() {
 function renderDSteps() {
   $('#dSteps').innerHTML = S.dSteps.map((x, i) => `
     <div class="step${x.d ? ' done' : ''}" data-i="${i}">
-      <button type="button" class="check" data-act="stoggle" aria-label="${x.d ? '체크 해제' : '체크'}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
-      </button>
+      <button type="button" class="check" data-act="stoggle" aria-label="${x.d ? '체크 해제' : '체크'}">${em(stateOf(x.d, x.due))}</button>
       <input class="field stxt" value="${esc(x.t)}" autocomplete="off" enterkeyhint="done">
       ${x.due || x.showDate ? `<input type="date" class="field sdue${x.due ? ' on' : ''}" value="${esc(x.due || '')}" aria-label="단계 마감일">`
-        : '<button type="button" class="scal" data-act="sdate" aria-label="단계 마감일 넣기">📅</button>'}
+        : `<button type="button" class="scal" data-act="sdate" aria-label="단계 마감일 넣기">${em('cal')}</button>`}
       <button type="button" class="clear" data-act="sdel" aria-label="단계 삭제">✕</button>
     </div>`).join('');
   updateAutoDue();
@@ -1079,7 +1076,7 @@ function growNext(ta) { ta.style.height = 'auto'; if (ta.scrollHeight) ta.style.
 function addNextItem(value, focus, after) {
   const row = document.createElement('div');
   row.className = 'nextrow';
-  row.innerHTML = '<span class="mk">🔸</span><textarea class="field" rows="1" enterkeyhint="next"></textarea><button type="button" class="rm" aria-label="이 항목 삭제">✕</button>';
+  row.innerHTML = '<span class="mk">' + em('next') + '</span><textarea class="field" rows="1" enterkeyhint="next"></textarea><button type="button" class="rm" aria-label="이 항목 삭제">✕</button>';
   const ta = row.querySelector('textarea');
   ta.value = value || '';
   if (after) after.after(row); else $('#rNexts').appendChild(row);
@@ -1272,15 +1269,16 @@ function renderSearch() {
   $('#qList').innerHTML = items.length ? items.slice(0, SEARCH_MAX).map((it) => {
     const o = it.o, tag = o.project ? `<span class="tag">${hl(o.project, tokens)}</span>` : '';
     if (it.kind === 'task') {
-      const head = o.status === 'done' ? `✔︎ ${mmdd(o.done)} 완료` : `➔ 진행 중 · ${mmdd(o.created)}부터`;
+      const st = stateOf(o.status === 'done', o.due);
+      const head = `${em(st)} ` + (st === 'done' ? `${mmdd(o.done)} 완료` : st === 'late' ? `미룸 · ${mmdd(o.due)} 마감 지남` : `진행 중 · ${mmdd(o.created)}부터`);
       return `<li class="sres${o.status === 'done' ? ' done' : ''}" data-k="task" data-id="${esc(o.id)}">
         <div class="h">할일 · ${head}${o.status === 'open' && o.due ? ' · ' + esc(dueText(o)) : ''}</div>
         <div class="b">${tag}${hl(o.title, tokens)}</div></li>`;
     }
     return `<li class="sres" data-k="rec" data-id="${esc(o.id)}">
       <div class="h">분석 기록 · ${koDate(o.date)}</div>
-      ${o.content ? `<div class="b">🔶 ${tag}${hl(o.content, tokens)}</div>` : ''}
-      ${o.next.split('\n').filter(Boolean).map((x) => `<div class="n">🔸 ${hl(x, tokens)}</div>`).join('')}</li>`;
+      ${o.content ? `<div class="b">${em('rec')} ${tag}${hl(o.content, tokens)}</div>` : ''}
+      ${o.next.split('\n').filter(Boolean).map((x) => `<div class="n">${em('next')} ${hl(x, tokens)}</div>`).join('')}</li>`;
   }).join('') : '<li class="empty">검색 결과가 없습니다.</li>';
 }
 let qTimer;
@@ -1316,7 +1314,7 @@ $('#iRun').addEventListener('click', () => {
   call('apiImport', text, $('#iDate').value || S.today).then((r) => {
     $('#iResult').textContent = r.days
       ? `${r.days}일치 처리 — 할일 ${r.added}개 추가, ${r.completed}개 완료 처리, 분석기록 ${r.records}개 추가, 중복 ${r.skipped}개 건너뜀`
-      : '인식된 항목이 없습니다. ✔︎·➔·🔶·🔸(또는 예전 ✅·➡️·▷·✍🏻)로 시작하는 줄이 있는지 확인하세요.';
+      : '인식된 항목이 없습니다. ✅·▶️·💤·🔶·🔸(또는 예전 기호)로 시작하는 줄이 있는지 확인하세요.';
     if (r.days) { $('#iText').value = ''; load(true); }
   }).catch(fail).finally(() => { btn.disabled = false; btn.textContent = '가져오기'; });
 });
