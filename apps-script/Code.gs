@@ -286,7 +286,7 @@ function apiImport(key, text, defaultDate) {
           } else if (same.some(function (t) { return t.done === day.date; })) {
             res.skipped++;
           } else {
-            const n = { id: newId_(), project: it.project, title: it.title, status: 'done', created: day.date, done: day.date, updated: now, due: '', remind: '', steps: stepsToStr_(it.steps) };
+            const n = { id: newId_(), project: it.project, title: it.title, status: 'done', created: day.date, done: day.date, updated: now, due: '', remind: '', steps: stepsToStr_(it.steps), note: it.note || '' };
             tasks.push(n); newTasks.push(n); res.added++;
           }
         } else {
@@ -296,7 +296,7 @@ function apiImport(key, text, defaultDate) {
             if (ongoing.created > day.date) { ongoing.created = day.date; touch(ongoing); }
             res.skipped++;
           } else {
-            const n = { id: newId_(), project: it.project, title: it.title, status: 'open', created: day.date, done: '', updated: now, due: maxStepDue_(it.steps), dueAuto: maxStepDue_(it.steps) ? '1' : '', remind: '', steps: stepsToStr_(it.steps) };
+            const n = { id: newId_(), project: it.project, title: it.title, status: 'open', created: day.date, done: '', updated: now, due: maxStepDue_(it.steps), dueAuto: maxStepDue_(it.steps) ? '1' : '', remind: '', steps: stepsToStr_(it.steps), note: it.note || '' };
             tasks.push(n); newTasks.push(n); res.added++;
           }
         }
@@ -340,6 +340,8 @@ function buildNotes_(date, withHeader) {
     const mark = t.status === 'done' && t.done === date ? MARK.done
       : (t.due && t.due < date ? MARK.overdue : MARK.open);
     const lines = [mark + ' ' + label_(t.project, t.title)];
+    // 할일 메모: 할일 바로 아래 들여쓴 🔸 줄 (여러 줄이면 줄마다)
+    nextItems_(t.note).forEach(function (x) { lines.push(STEP_INDENT + MARK.next + ' ' + x); });
     stepsOf_(t.steps).forEach(function (x) {
       const sm = x.d ? MARK.done : (x.due && x.due < date ? MARK.overdue : MARK.open);
       lines.push(STEP_INDENT + sm + ' ' + x.t + stepDueLabel_(x.due));
@@ -389,6 +391,12 @@ function parseNote_(text, defaultDate) {
     const indented = /^[ \t\u00a0\u3000]/.test(raw);
     const oldStep = !kind && (isStepOn_(line.charAt(0)) || isStepOff_(line.charAt(0)));
     const isStep = lastTask && ((indented && (kind === 'done' || kind === 'open')) || oldStep);
+    // 할일 아래 들여쓴 🔸 줄 → 할일 메모
+    if (lastTask && indented && kind === 'next') {
+      const nt = stripMark_(line);
+      if (nt) lastTask.note = lastTask.note ? lastTask.note + '\n' + nt : nt;
+      return;
+    }
     if (isStep) {
       const st = (oldStep ? line.slice(1).replace(/^[\uFE0E\uFE0F]/, '') : stripMark_(line)).trim();
       const stepDone = oldStep ? isStepOn_(line.charAt(0)) : kind === 'done';
@@ -421,7 +429,7 @@ function parseNote_(text, defaultDate) {
     const body = stripMark_(line);
     if (kind === 'done' || kind === 'open') {
       const s = splitProj_(body);
-      lastTask = { project: s.project, title: s.text, status: kind, steps: [] };
+      lastTask = { project: s.project, title: s.text, status: kind, steps: [], note: '' };
       day.tasks.push(lastTask);
       last = null; lastField = '';
     } else if (kind === 'rec') {
