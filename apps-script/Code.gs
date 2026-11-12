@@ -13,6 +13,8 @@
  */
 
 const TZ = 'Asia/Seoul';
+// 앱(index.html)이 이 값을 확인해서 Apps Script가 오래된 버전이면 경고를 띄운다. 기능을 바꿀 때마다 올릴 것.
+const SERVER_VERSION = '2026-11-12';
 const H_TODO = '𝑹𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝑻𝒐-𝒅𝒐';
 const H_REC = '𝑨𝒏𝒂𝒍𝒚𝒔𝒊𝒔 𝑹𝒆𝒄𝒐𝒓𝒅𝒔';
 // 메모 기호 — 할일·단계: ✅ 완료 / ▶️ 진행중 / 💤 미룸(마감 지남), 기록 🔶 / 추가 정보 🔸
@@ -136,6 +138,7 @@ function apiGet_(p) {
 function apiLoad(key) {
   auth_(key);
   return {
+    version: SERVER_VERSION,
     today: today_(),
     url: ScriptApp.getService().getUrl(),
     tasks: read_('Tasks').filter(function (t) { return t.status !== 'deleted'; }).map(strip_),

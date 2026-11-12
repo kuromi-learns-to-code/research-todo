@@ -71,6 +71,7 @@ textarea.field { resize: vertical; min-height: 64px; line-height: 1.45; }
 ul.list { list-style: none; margin: 0; padding: 0; }
 .task { display: flex; align-items: flex-start; gap: 10px; padding: 10px 2px; border-top: 1px solid var(--line); }
 .task:first-child { border-top: 0; }
+.svwarn { background: #fde4dc; border: 1px solid #f3b9a6; color: #8a2f1c; border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; font-size: 13px; line-height: 1.5; }
 .tnote { font-size: 13px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .task[draggable="true"] { cursor: grab; }
 .task.dragging { opacity: .45; }
@@ -221,6 +222,7 @@ dialog .acts .sp { flex: 1; }
       <button data-tab="etc">ETC</button>
     </nav>
 
+    <div id="svWarn" class="svwarn" hidden></div>
     <div id="loading" class="loading">불러오는 중…</div>
 
     <!-- ============ Research To-do ============ -->
@@ -425,6 +427,8 @@ dialog .acts .sp { flex: 1; }
 
 <script>
 /* ---------------- 연결 정보 ---------------- */
+// 이 앱이 필요로 하는 Apps Script(Code.gs) 버전. 더 낮으면 상단에 경고
+const NEED_SERVER = '2026-11-12';
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
@@ -601,6 +605,10 @@ function load(silent) {
     const dayChanged = S.today && S.today !== d.today;
     Object.assign(S, d);
     S.loadedAt = Date.now();
+    const sv = d.version || '';
+    $('#svWarn').hidden = sv >= NEED_SERVER;
+    $('#svWarn').innerHTML = `<b>Apps Script가 최신 버전이 아닙니다</b> (서버 ${esc(sv || '확인 불가')} · 필요 ${NEED_SERVER}). `
+      + 'GitHub의 apps-script/Code.gs로 교체한 뒤 [배포 → 배포 관리 → ✏️ → 버전: 새 버전 → 배포]를 해 주세요. 그 전까지는 Backlog 이동 등 일부 변경이 저장되지 않습니다.';
     if (!S.recDate || dayChanged) S.recDate = S.today;
     if (!$('#iDate').value) $('#iDate').value = S.today;
     $('#gate').hidden = true;

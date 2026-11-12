@@ -28,6 +28,8 @@
 
 코드 수정 후: **배포 → 배포 관리 → ✏️ → 버전: 새 버전 → 배포** (URL·KEY 유지)
 
+앱은 Apps Script의 `SERVER_VERSION`을 확인해서, `index.html`의 `NEED_SERVER`보다 오래됐으면 화면 맨 위에 경고를 띄운다. Code.gs의 기능을 바꿀 때 두 값을 함께 올릴 것.
+
 ## B. GitHub Pages (앱 화면)
 
 1. 이 폴더 내용을 GitHub 저장소(공개)에 올린다
