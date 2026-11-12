@@ -71,6 +71,11 @@ textarea.field { resize: vertical; min-height: 64px; line-height: 1.45; }
 ul.list { list-style: none; margin: 0; padding: 0; }
 .task { display: flex; align-items: flex-start; gap: 10px; padding: 10px 2px; border-top: 1px solid var(--line); }
 .task:first-child { border-top: 0; }
+.tnote { font-size: 13px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task[draggable="true"] { cursor: grab; }
+.task.dragging { opacity: .45; }
+nav.tabs button.dropok { outline: 2px dashed var(--accent); outline-offset: -2px; background: var(--surface); color: var(--accent); }
+#dNote { min-height: 52px; font-size: 15px; }
 .emo { width: 1.2em; height: 1.2em; vertical-align: -0.22em; display: inline-block; }
 /* 상태 아이콘: ✅ 완료 / ▶️ 진행중 / 💤 미룸(마감 지남) — 누르면 완료 ↔ 되돌리기 */
 .check { flex: 0 0 auto; width: 28px; height: 28px; margin-top: -2px; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; padding: 0; border-radius: 8px; }
@@ -211,6 +216,7 @@ dialog .acts .sp { flex: 1; }
 
     <nav class="tabs">
       <button data-tab="todo" class="on">Research To‑do</button>
+      <button data-tab="backlog">Backlog</button>
       <button data-tab="rec">Analysis Records</button>
       <button data-tab="etc">ETC</button>
     </nav>
@@ -253,6 +259,19 @@ dialog .acts .sp { flex: 1; }
         </div>
         <div id="chips" class="chips"></div>
         <ul id="taskList" class="list"></ul>
+      </div>
+    </section>
+
+    <!-- ============ Backlog ============ -->
+    <section id="tab-backlog" hidden>
+      <div class="card">
+        <h2>Backlog <span class="count" id="bCount"></span></h2>
+        <form id="bForm" class="row">
+          <input id="bTitle" class="field" placeholder="Backlog에 추가" autocomplete="off" enterkeyhint="done">
+          <button class="btn">추가</button>
+        </form>
+        <p class="help">태그를 붙이면 Research To‑do로 이동 · PC는 위쪽 탭으로 끌어다 놓기 · 아이폰 메모·알림·아이콘 숫자에서 제외</p>
+        <ul id="backlogList" class="list"></ul>
       </div>
     </section>
 
@@ -363,6 +382,7 @@ dialog .acts .sp { flex: 1; }
       <input id="dTitle" class="field" placeholder="할 일" autocomplete="off">
       <div class="steps" id="dSteps"></div>
       <input id="dStepNew" class="field" placeholder="+ 단계 추가 (Enter)" autocomplete="off" enterkeyhint="done">
+      <textarea id="dNote" class="field" rows="2" placeholder="메모 (앱에서만 보임)"></textarea>
       <div class="duebar" id="dDueBar" style="margin-top:0">
         <span class="lbl">마감</span>
         <button type="button" class="chip" data-due="today">오늘</button>
@@ -393,6 +413,7 @@ dialog .acts .sp { flex: 1; }
     </div>
     <div class="acts">
       <button type="button" class="btn danger" id="dDelete">삭제</button>
+      <button type="button" class="btn ghost" id="dMove"></button>
       <span class="sp"></span>
       <button type="button" class="btn ghost" id="dCancel">취소</button>
       <button class="btn" id="dSave">저장</button>
@@ -428,7 +449,7 @@ function readSetupHash(hash) {
 
 const S = {
   tasks: [], records: [], today: '', url: '',
-  tab: ['todo', 'rec', 'etc'].indexOf(store.get('rt.tab')) >= 0 ? store.get('rt.tab') : 'todo', filter: store.get('rt.filter') || '',
+  tab: ['todo', 'backlog', 'rec', 'etc'].indexOf(store.get('rt.tab')) >= 0 ? store.get('rt.tab') : 'todo', filter: store.get('rt.filter') || '',
   recDate: '', editRec: null, editTask: null,
   loadedAt: 0,
   doneOpen: store.get('rt.doneOpen2') === '1', doneLimit: 20,   // 완료됨 목록 (기본 접힘, 펼침 상태 기억, 20개씩 더 보기)
@@ -618,8 +639,34 @@ function renderProjects() {
   $('#projList').innerHTML = projectsByRecency().map((p) => `<option value="${esc(p)}">`).join('');
 }
 
-function visibleTasks() {
-  return S.tasks.filter((t) => t.status === 'open' || t.status === 'done');
+const inBacklog = (t) => t.list === 'backlog';
+function visibleTasks() {   // Research To-do 목록 (Backlog 제외)
+  return S.tasks.filter((t) => (t.status === 'open' || t.status === 'done') && !inBacklog(t));
+}
+const canDrag = matchMedia('(pointer: fine)').matches;   // 마우스가 있는 기기(PC)에서만 끌어서 옮기기
+function taskRow(t) {
+  const age = t.status === 'open' && !inBacklog(t) ? diffDays(t.created, S.today) : 0;
+  const note = (t.note || '').trim();
+  return `<li class="task${t.status === 'done' ? ' done' : ''}" data-id="${esc(t.id)}"${canDrag ? ' draggable="true"' : ''}>
+      <button class="check" data-act="toggle" aria-label="${t.status === 'done' ? '완료 취소' : '완료'}">${em(stateOf(t.status === 'done', t.due))}</button>
+      <div class="tbody" data-act="edit">
+        <div class="ttitle">${tagHtml(t.project)}${esc(t.title)}</div>
+        ${(t.status === 'open' && (t.due || t.remind || t.repeat)) || age > 0 ? `<div class="tmeta">${dueHtml(t)}${repHtml(t)}${remHtml(t)}${age > 0 ? `${mmdd(t.created)}부터 · ${age}일째` : ''}</div>` : ''}
+        ${note ? `<div class="tnote">${esc(note.split('\n')[0])}${note.indexOf('\n') >= 0 ? ' …' : ''}</div>` : ''}
+        ${stepListHtml(t)}
+      </div>
+    </li>`;
+}
+const byDue = (list) => list.map((t, i) => [t, i])
+  .sort((a, b) => (a[0].due || '9999').localeCompare(b[0].due || '9999') || a[1] - b[1]).map((x) => x[0]);
+function renderBacklog() {
+  const items = S.tasks.filter((t) => inBacklog(t) && t.status !== 'deleted');
+  const open = byDue(items.filter((t) => t.status === 'open'));
+  const done = items.filter((t) => t.status === 'done').sort((a, b) => b.done.localeCompare(a.done));
+  $('#bCount').textContent = `${open.length}개`;
+  let html = open.length ? open.map(taskRow).join('') : '<li class="empty">Backlog가 비어 있습니다.</li>';
+  if (done.length) html += `<li class="divider">완료</li>` + done.slice(0, 20).map(taskRow).join('');
+  $('#backlogList').innerHTML = html;
 }
 // 날짜별 묶음 머리글을 넣어 목록 HTML 생성
 function grouped(items, dayOf, rowFn) {
@@ -648,17 +695,7 @@ function renderTasks() {
     projs.map((p) => `<button class="chip${S.filter === p ? ' on' : ''}" data-p="${esc(p)}">${esc(p)} ${cnt(p)}</button>`).join('');
 
   const f = (t) => !S.filter || t.project === S.filter;
-  const row = (t) => {
-    const age = t.status === 'open' ? diffDays(t.created, S.today) : 0;
-    return `<li class="task${t.status === 'done' ? ' done' : ''}" data-id="${esc(t.id)}">
-      <button class="check" data-act="toggle" aria-label="${t.status === 'done' ? '완료 취소' : '완료'}">${em(stateOf(t.status === 'done', t.due))}</button>
-      <div class="tbody" data-act="edit">
-        <div class="ttitle">${tagHtml(t.project)}${esc(t.title)}</div>
-        ${(t.status === 'open' && (t.due || t.remind || t.repeat)) || age > 0 ? `<div class="tmeta">${dueHtml(t)}${repHtml(t)}${remHtml(t)}${age > 0 ? `${mmdd(t.created)}부터 · ${age}일째` : ''}</div>` : ''}
-        ${stepListHtml(t)}
-      </div>
-    </li>`;
-  };
+  const row = taskRow;
   // 마감 임박 순 (마감 없는 것은 뒤로, 같으면 추가한 순서)
   const o = open.filter(f).map((t, i) => [t, i])
     .sort((a, b) => (a[0].due || '9999').localeCompare(b[0].due || '9999') || a[1] - b[1]).map((x) => x[0]);
@@ -676,12 +713,13 @@ function renderTasks() {
     }
   }
   $('#taskList').innerHTML = html;
+  renderBacklog();
   updateBadge();
 }
 
 /* ---------------- 아이콘 숫자 (오늘 마감 + 밀린 일) ---------------- */
 function badgeCount() {
-  return S.tasks.filter((t) => t.status === 'open' && t.due && t.due <= S.today).length;
+  return S.tasks.filter((t) => t.status === 'open' && !inBacklog(t) && t.due && t.due <= S.today).length;
 }
 const isInstalledApp = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 let badgeTestTimer = 0;
@@ -717,7 +755,7 @@ function showNotif(title, body, tag) {
 function checkReminders() {
   if (!S.loadedAt) return;
   const now = nowDT();
-  const hit = S.tasks.filter((t) => t.status === 'open' && t.remind && t.remind <= now && notified[t.id] !== t.remind);
+  const hit = S.tasks.filter((t) => t.status === 'open' && !inBacklog(t) && t.remind && t.remind <= now && notified[t.id] !== t.remind);
   if (!hit.length) return;
   const cutoff = new Date(Date.now() - 12 * 3600e3);   // 12시간 넘게 지난 알림은 표시하지 않음
   hit.forEach((t) => {
@@ -780,7 +818,7 @@ function renderEtc() {
 function showTab(tab) {
   S.tab = tab;
   document.querySelectorAll('nav.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
-  ['todo', 'rec', 'etc'].forEach((t) => { $('#tab-' + t).hidden = t !== tab; });
+  ['todo', 'backlog', 'rec', 'etc'].forEach((t) => { $('#tab-' + t).hidden = t !== tab; });
   store.set('rt.tab', tab);
 }
 
@@ -882,7 +920,9 @@ function applyServerTask(t, srv) {
   delete srv._next; delete srv._removed;
   const aligned = t.status === 'open' && srv.repeat && t.due && srv.due !== t.due;
   const autoDone = srv._autoDone; delete srv._autoDone;
+  const moved = srv._moved; delete srv._moved;
   Object.assign(t, srv);
+  if (moved) toast('태그가 붙어 Research To-do로 옮겼습니다');
   if (autoDone) toast('모든 단계를 마쳐 할일을 완료했습니다');
   if (aligned) toast(`↻ 반복 요일에 맞춰 마감을 ${mmdd(srv.due)} (${WD[dowOf(srv.due)]})로 옮겼습니다`);
   if (next && !S.tasks.some((x) => x.id === next.id)) {
@@ -893,12 +933,12 @@ function applyServerTask(t, srv) {
   renderTasks();
 }
 
-function addTask(project, title, due, remind, rep) {
+function addTask(project, title, due, remind, rep, list) {
   const m = title.match(/^\[([^\]]+)\]\s*(.+)$/);
   if (m && !project) { project = m[1].trim(); title = m[2].trim(); }
   rep = rep || { repeat: '', until: '' };
   const t = { id: uid(), project, title, status: 'open', created: S.today, done: '', due: due || (rep.repeat ? S.today : ''),
-    remind: remind || '', repeat: rep.repeat, until: rep.until, updated: new Date().toISOString() };
+    remind: remind || '', repeat: rep.repeat, until: rep.until, list: list || '', updated: new Date().toISOString() };
   S.tasks.push(t);
   renderAll();
   return call('apiSaveTask', t)
@@ -942,6 +982,11 @@ $('#taskList').addEventListener('click', (e) => {
     S.doneOpen = !S.doneOpen; S.doneLimit = 20; store.set('rt.doneOpen2', S.doneOpen ? '1' : '0'); renderTasks(); return;
   }
   if (el && el.dataset.act === 'donemore') { S.doneLimit += 20; renderTasks(); return; }
+  taskClick(e);
+});
+$('#backlogList').addEventListener('click', taskClick);
+function taskClick(e) {
+  const el = e.target.closest('[data-act]');
   const li = e.target.closest('li[data-id]');
   if (!el || !li) return;
   const t = S.tasks.find((x) => x.id === li.dataset.id);
@@ -955,6 +1000,45 @@ $('#taskList').addEventListener('click', (e) => {
   if (el.dataset.act === 'toggle') {
     saveTask(t, t.status === 'done' ? { status: 'open', done: '' } : { status: 'done', done: S.today }).catch(() => {});
   } else openTaskDialog(t);
+}
+
+/* ---------------- Research To-do ↔ Backlog 옮기기 ---------------- */
+function moveTask(t, list) {
+  if ((t.list || '') === list) return;
+  saveTask(t, { list }).then(() => toast(list === 'backlog' ? 'Backlog로 옮겼습니다' : 'Research To-do로 옮겼습니다')).catch(() => {});
+}
+// PC: 할일을 위쪽 Research To-do / Backlog 탭에 끌어다 놓기
+let dragId = '';
+document.addEventListener('dragstart', (e) => {
+  const li = e.target.closest && e.target.closest('li.task[data-id]');
+  if (!li) return;
+  dragId = li.dataset.id;
+  li.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', dragId);
+});
+document.addEventListener('dragend', () => {
+  dragId = '';
+  document.querySelectorAll('.dragging').forEach((x) => x.classList.remove('dragging'));
+  document.querySelectorAll('nav.tabs .dropok').forEach((x) => x.classList.remove('dropok'));
+});
+document.querySelectorAll('nav.tabs button[data-tab="todo"], nav.tabs button[data-tab="backlog"]').forEach((b) => {
+  b.addEventListener('dragover', (e) => { if (dragId) { e.preventDefault(); b.classList.add('dropok'); } });
+  b.addEventListener('dragleave', () => b.classList.remove('dropok'));
+  b.addEventListener('drop', (e) => {
+    e.preventDefault();
+    b.classList.remove('dropok');
+    const t = S.tasks.find((x) => x.id === dragId);
+    if (t) moveTask(t, b.dataset.tab === 'backlog' ? 'backlog' : '');
+  });
+});
+$('#bForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const title = $('#bTitle').value.trim();
+  if (!title) return $('#bTitle').focus();
+  addTask('', title, '', '', null, 'backlog');
+  $('#bTitle').value = '';
+  $('#bTitle').focus();
 });
 
 /* ---- 딸림 할일(단계) 편집: 저장 버튼을 눌러야 반영 ---- */
@@ -1033,6 +1117,9 @@ function openTaskDialog(t) {
   S.dStepsOrig = JSON.stringify(cleanSteps(S.dSteps));
   $('#dStepNew').value = '';
   renderDSteps();
+  $('#dNote').value = t.note || '';
+  S.dMoveTo = null;
+  $('#dMove').textContent = inBacklog(t) ? 'To-do로 보내기' : 'Backlog로 보내기';
   $('#dMeta').textContent = `${mmdd(t.created)} 생성` + (t.done ? ` · ${mmdd(t.done)} 완료` : '');
   $('#taskDlg').showModal();
 }
@@ -1051,9 +1138,20 @@ $('#taskDlgForm').addEventListener('submit', (e) => {
   const auto = !dDue.get() ? maxStepDue(steps) : '';   // 마감 비움 + 단계 마감 있음 → 서버가 자동 설정
   const patch = { project: $('#dProj').value.trim(), title, due: dDue.get() || (!auto && rep.repeat ? S.today : ''), remind, repeat: rep.repeat, until: rep.until };
   if (JSON.stringify(steps) !== S.dStepsOrig) patch.steps = steps;   // 바뀐 경우에만 전송
-  saveTask(t, patch, auto ? { due: auto, dueAuto: '1' } : null).catch(() => {});
+  patch.note = $('#dNote').value.trim();
+  const moveTo = S.dMoveTo; S.dMoveTo = null;
+  if (moveTo !== null) patch.list = moveTo;
+  saveTask(t, patch, auto ? { due: auto, dueAuto: '1' } : null)
+    .then(() => { if (moveTo !== null) toast(moveTo === 'backlog' ? 'Backlog로 옮겼습니다' : 'Research To-do로 옮겼습니다'); })
+    .catch(() => {});
 });
 $('#dCancel').addEventListener('click', () => $('#taskDlg').close());
+$('#dMove').addEventListener('click', () => {   // 편집 내용과 함께 저장하면서 옮김
+  const t = S.tasks.find((x) => x.id === S.editTask);
+  if (!t) return;
+  S.dMoveTo = inBacklog(t) ? '' : 'backlog';
+  $('#taskDlgForm').requestSubmit();
+});
 $('#dDelete').addEventListener('click', () => {
   const t = S.tasks.find((x) => x.id === S.editTask);
   $('#taskDlg').close();
@@ -1259,7 +1357,7 @@ function renderSearch() {
   const hit = (txt) => { const l = txt.toLowerCase(); return tokens.every((t) => l.indexOf(t) >= 0); };
   const items = [];
   if (qKind !== 'rec') S.tasks.forEach((t) => {
-    if (t.status !== 'deleted' && hit(`${t.project} ${t.title} ${stepsOf(t).map((x) => x.t).join(' ')}`)) items.push({ kind: 'task', date: t.done || t.created, o: t });
+    if (t.status !== 'deleted' && hit(`${t.project} ${t.title} ${t.note || ''} ${stepsOf(t).map((x) => x.t).join(' ')}`)) items.push({ kind: 'task', date: t.done || t.created, o: t });
   });
   if (qKind !== 'task') S.records.forEach((r) => {
     if (hit(`${r.project} ${r.content} ${r.next}`)) items.push({ kind: 'rec', date: r.date, o: r });
@@ -1272,7 +1370,7 @@ function renderSearch() {
       const st = stateOf(o.status === 'done', o.due);
       const head = `${em(st)} ` + (st === 'done' ? `${mmdd(o.done)} 완료` : st === 'late' ? `미룸 · ${mmdd(o.due)} 마감 지남` : `진행 중 · ${mmdd(o.created)}부터`);
       return `<li class="sres${o.status === 'done' ? ' done' : ''}" data-k="task" data-id="${esc(o.id)}">
-        <div class="h">할일 · ${head}${o.status === 'open' && o.due ? ' · ' + esc(dueText(o)) : ''}</div>
+        <div class="h">${inBacklog(o) ? 'Backlog' : '할일'} · ${head}${o.status === 'open' && o.due ? ' · ' + esc(dueText(o)) : ''}</div>
         <div class="b">${tag}${hl(o.title, tokens)}</div></li>`;
     }
     return `<li class="sres" data-k="rec" data-id="${esc(o.id)}">

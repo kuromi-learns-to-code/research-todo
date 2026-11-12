@@ -19,7 +19,7 @@ const H_REC = '𝑨𝒏𝒂𝒍𝒚𝒔𝒊𝒔 𝑹𝒆𝒄𝒐𝒓𝒅𝒔';
 // (가져오기는 예전 기호 ✔︎ ➔ 😡 ➡️ ⏰ ▷ ✍🏻 ✓ · ☑ ☐ 도 인식)
 const MARK = { done: '✅', open: '▶️', overdue: '💤', rec: '🔶', next: '🔸' };
 const SCHEMA = {
-  Tasks: ['id', 'project', 'title', 'status', 'created', 'done', 'updated', 'due', 'remind', 'repeat', 'until', 'nextId', 'steps', 'dueAuto'],
+  Tasks: ['id', 'project', 'title', 'status', 'created', 'done', 'updated', 'due', 'remind', 'repeat', 'until', 'nextId', 'steps', 'dueAuto', 'note', 'list'],
   Records: ['id', 'date', 'project', 'content', 'next', 'nextDone', 'deleted', 'updated'],
 };
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -143,17 +143,26 @@ function apiLoad(key) {
   };
 }
 
-/** 할일 추가/수정. input: {id, project?, title?, status?, done?, due?, remind?} */
+/** 할일 추가/수정. input: {id, project?, title?, status?, done?, due?, remind?, repeat?, until?, steps?, note?, list?} */
 function apiSaveTask(key, input) {
   auth_(key);
   input = input || {};
   return withLock_(function () {
     const today = today_();
     const cur = input.id ? find_('Tasks', input.id) : null;
-    const t = cur || { id: safeId_(input.id), project: '', title: '', status: 'open', created: today, done: '', due: '', remind: '', repeat: '', until: '', nextId: '', steps: '', dueAuto: '' };
+    const t = cur || { id: safeId_(input.id), project: '', title: '', status: 'open', created: today, done: '', due: '', remind: '', repeat: '', until: '', nextId: '', steps: '', dueAuto: '', note: '', list: '' };
     let spawned = null, removed = '';
+    const prevProject = t.project;
     if (input.project != null) t.project = clean_(input.project);
     if (input.title != null) t.title = clean_(input.title);
+    if (input.note != null) t.note = cleanMulti_(input.note);   // 할일 메모 (메모 앱으로는 넘기지 않음)
+    // 목록: '' = Research To-do, 'backlog' = Backlog
+    if (input.list != null) t.list = input.list === 'backlog' ? 'backlog' : '';
+    // Backlog 항목에 태그를 새로 붙이거나 바꾸면 Research To-do로 이동 (같은 저장에서 목록을 직접 지정한 경우는 제외)
+    let movedToTodo = false;
+    if (cur && t.list === 'backlog' && input.list == null && t.project && t.project !== prevProject) {
+      t.list = ''; movedToTodo = true;
+    }
     if (input.due != null) { t.due = DATE_RE.test(input.due) ? input.due : ''; t.dueAuto = ''; }   // 직접 입력한 마감
     if (input.remind != null) t.remind = REMIND_RE.test(input.remind) ? input.remind : '';
     if (input.repeat != null) t.repeat = REPEAT_RE.test(input.repeat) ? input.repeat : '';
@@ -187,7 +196,7 @@ function apiSaveTask(key, input) {
           spawned = {
             id: newId_(), project: t.project, title: t.title, status: 'open', created: today, done: '',
             due: nd, remind: shiftRemind_(t.remind, t.due, nd), repeat: t.repeat, until: t.until, nextId: '', updated: stamp_(),
-            dueAuto: t.dueAuto,
+            dueAuto: t.dueAuto, note: t.note, list: t.list,
             // 단계는 체크 해제해서 복사, 단계 마감도 회차 간격만큼 이동
             steps: stepsToStr_(stepsOf_(t.steps).map(function (x) {
               return { t: x.t, d: false, due: x.due && t.due ? shiftDate_(x.due, t.due, nd) : '' };
@@ -209,6 +218,7 @@ function apiSaveTask(key, input) {
     if (spawned) appendRows_('Tasks', [spawned]);
     const autoDone = !!t._autoDone; delete t._autoDone;
     const out = strip_(t);
+    if (movedToTodo) out._moved = true;
     if (autoDone) out._autoDone = true;
     if (spawned) out._next = strip_(spawned);
     if (removed) out._removed = removed;
@@ -322,6 +332,7 @@ function buildNotes_(date, withHeader) {
   all.forEach(function (t) { if (t.nextId) spawnedIds[t.nextId] = true; });
   const todo = all.filter(function (t) {
     if (t.status === 'deleted' || !t.created || t.created > date) return false;
+    if (t.list === 'backlog') return false;   // Backlog는 메모에 넘기지 않음
     if (spawnedIds[t.id] && t.status === 'open' && t.due > date) return false;   // 아직 차례가 오지 않은 다음 회차
     if (t.status === 'open') return true;
     return t.status === 'done' && t.done >= date;
