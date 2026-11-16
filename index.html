@@ -74,9 +74,9 @@ ul.list { list-style: none; margin: 0; padding: 0; }
 .svwarn { background: #fde4dc; border: 1px solid #f3b9a6; color: #8a2f1c; border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; font-size: 13px; line-height: 1.5; }
 /* 중요 ⭐: 꺼져 있으면 흐린 회색 별, 켜면 노란 별 */
 .star { flex: 0 0 auto; border: 0; background: transparent; padding: 3px; margin-top: -1px; cursor: pointer; line-height: 0; border-radius: 6px; align-self: flex-start; }
-.star .emo { width: 18px; height: 18px; vertical-align: 0; filter: grayscale(1); opacity: .22; }
-.star:hover .emo { opacity: .5; }
-.star.on .emo { filter: none; opacity: 1; }
+.star .emo, .star svg { width: 18px; height: 18px; vertical-align: 0; display: block; }
+.star svg path { fill: #BBBBBB; }   /* 선택 전: 연회색 별 */
+.star:hover svg path { fill: #999999; }
 /* 월 캘린더 (월~금) */
 .wrap.wide { max-width: 1100px; }
 .calbtn { border: 0; background: transparent; padding: 2px 4px; margin-left: 4px; cursor: pointer; border-radius: 6px; line-height: 0; vertical-align: -3px; }
@@ -203,6 +203,17 @@ dialog h3 { margin: 0 0 12px; font-size: 16px; }
 dialog .grid { display: grid; gap: 8px; }
 dialog .acts { display: flex; gap: 8px; margin-top: 14px; }
 dialog .acts .sp { flex: 1; }
+/* 캘린더에서 여는 읽기 전용 보기 */
+#viewDlg .vtitle { font-size: 16px; font-weight: 600; display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
+#viewDlg .vtitle .emo { width: 20px; height: 20px; flex: 0 0 auto; margin-top: 1px; vertical-align: 0; }
+#viewDlg .vtitle .vstar { width: 18px; height: 18px; }
+#viewDlg .vrow { font-size: 13px; color: var(--muted); margin: 3px 0; }
+#viewDlg .vrow b { color: var(--text); font-weight: 600; margin-right: 6px; }
+#viewDlg .vnote { white-space: pre-wrap; word-break: break-word; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; margin-top: 8px; }
+#viewDlg .vsteps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+#viewDlg .vsteps li { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+#viewDlg .vsteps .emo { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; vertical-align: 0; }
+#viewDlg .vsteps li.done span:first-of-type { color: var(--muted); text-decoration: line-through; }
 
 #toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(120px); background: #5a3d30; color: #fff; padding: 10px 14px; border-radius: 12px; display: flex; gap: 12px; align-items: center; font-size: 14px; transition: transform .2s; max-width: calc(100vw - 32px); z-index: 10; }
 #toast.show { transform: translateX(-50%) translateY(0); }
@@ -462,6 +473,15 @@ dialog .acts .sp { flex: 1; }
   </form>
 </dialog>
 
+<dialog id="viewDlg">
+  <div id="viewBody"></div>
+  <div class="acts">
+    <span class="sp"></span>
+    <button type="button" class="btn ghost" id="vClose">닫기</button>
+    <button type="button" class="btn" id="vEdit">편집</button>
+  </div>
+</dialog>
+
 <div id="toast" role="status"><span id="toastMsg"></span><button id="toastAct" hidden></button></div>
 
 <script>
@@ -581,6 +601,8 @@ function dueText(t) {
 }
 // 이모지는 기기 글꼴 대신 테두리 없는 Noto 이모지 그림으로 (PC·아이폰 동일)
 const EMO = { done: ['2705', '✅'], open: ['25b6', '▶️'], late: ['1f4a4', '💤'], rec: ['1f536', '🔶'], next: ['1f538', '🔸'], bell: ['1f514', '🔔'], cal: ['1f4c5', '📅'], star: ['2b50', '⭐'] };
+// 중요 표시 전의 별: 테두리 없는 단색(#BBBBBB) 별 모양
+const STAR_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.85 5.95 6.55.83-4.82 4.53 1.24 6.49L12 17.24 6.18 20.4l1.24-6.49L2.6 9.38l6.55-.83z"/></svg>';
 const em = (k) => `<img class="emo" src="icons/emoji/${EMO[k][0]}.svg" alt="${EMO[k][1]}" draggable="false">`;
 /** 할일·단계 상태: done ✅ / late 💤 (마감 지남) / open ▶️ */
 const stateOf = (doneFlag, due) => doneFlag ? 'done' : (due && due < S.today ? 'late' : 'open');
@@ -704,7 +726,7 @@ function taskRow(t) {
         ${note ? `<div class="tnote">${esc(note.split('\n')[0])}${note.indexOf('\n') >= 0 ? ' …' : ''}</div>` : ''}
         ${stepListHtml(t)}
       </div>
-      <button type="button" class="star${t.star ? ' on' : ''}" data-act="star" aria-label="${t.star ? '중요 해제' : '중요 표시'}" title="${t.star ? '중요 해제' : '중요 표시'}">${em('star')}</button>
+      <button type="button" class="star${t.star ? ' on' : ''}" data-act="star" aria-label="${t.star ? '중요 해제' : '중요 표시'}" title="${t.star ? '중요 해제' : '중요 표시'}">${t.star ? em('star') : STAR_OFF}</button>
     </li>`;
 }
 const byDue = (list) => list.map((t, i) => [t, i])
@@ -1109,6 +1131,32 @@ $('#calToday').addEventListener('click', () => { S.calMonth = S.today.slice(0, 7
 $('#calGrid').addEventListener('click', (e) => {
   const b = e.target.closest('.calitem');
   const t = b && S.tasks.find((x) => x.id === b.dataset.id);
+  if (t) viewTask(t);
+});
+
+/* 캘린더에서 누르면: 읽기 전용 보기 → [편집]을 눌러야 편집 창 */
+let viewId = '';
+function viewTask(t) {
+  viewId = t.id;
+  const st = stateOf(t.status === 'done', t.due);
+  const rows = [];
+  rows.push(`<div class="vrow"><b>상태</b>${st === 'done' ? `완료 (${mmdd(t.done)})` : st === 'late' ? '미룸 (마감 지남)' : '진행중'}</div>`);
+  if (t.due) rows.push(`<div class="vrow"><b>마감</b>${mmdd(t.due)} (${WD[dowOf(t.due)]})${t.dueAuto === '1' ? ' · 단계 기준 자동' : ''}</div>`);
+  if (t.repeat) rows.push(`<div class="vrow"><b>반복</b>${repLabel(t.repeat)}${t.until ? ` (~${mmdd(t.until)})` : ''}</div>`);
+  if (t.remind) rows.push(`<div class="vrow"><b>알림</b>${mmdd(t.remind.slice(0, 10))} ${t.remind.slice(11)}</div>`);
+  rows.push(`<div class="vrow"><b>생성</b>${mmdd(t.created)}</div>`);
+  const steps = stepsOf(t);
+  $('#viewBody').innerHTML = `
+    <div class="vtitle">${em(st)}<div>${tagHtml(t.project)}${esc(t.title)}</div>${t.star ? `<img class="emo vstar" src="icons/emoji/2b50.svg" alt="⭐">` : ''}</div>
+    ${rows.join('')}
+    ${(t.note || '').trim() ? `<div class="vnote">${esc(t.note.trim())}</div>` : ''}
+    ${steps.length ? `<ul class="vsteps">${steps.map((x) => `<li class="${x.d ? 'done' : ''}">${em(stateOf(x.d, x.due))}<span>${esc(x.t)}</span>${stepDueHtml(x)}</li>`).join('')}</ul>` : ''}`;
+  $('#viewDlg').showModal();
+}
+$('#vClose').addEventListener('click', () => $('#viewDlg').close());
+$('#vEdit').addEventListener('click', () => {
+  const t = S.tasks.find((x) => x.id === viewId);
+  $('#viewDlg').close();
   if (t) openTaskDialog(t);
 });
 
