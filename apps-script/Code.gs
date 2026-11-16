@@ -14,14 +14,15 @@
 
 const TZ = 'Asia/Seoul';
 // 앱(index.html)이 이 값을 확인해서 Apps Script가 오래된 버전이면 경고를 띄운다. 기능을 바꿀 때마다 올릴 것.
-const SERVER_VERSION = '2026-11-12';
+const SERVER_VERSION = '2026-11-16';
+const STAR = '⭐';   // 중요 표시 (메모에는 할일 끝에 붙음)
 const H_TODO = '𝑹𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝑻𝒐-𝒅𝒐';
 const H_REC = '𝑨𝒏𝒂𝒍𝒚𝒔𝒊𝒔 𝑹𝒆𝒄𝒐𝒓𝒅𝒔';
 // 메모 기호 — 할일·단계: ✅ 완료 / ▶️ 진행중 / 💤 미룸(마감 지남), 기록 🔶 / 추가 정보 🔸
 // (가져오기는 예전 기호 ✔︎ ➔ 😡 ➡️ ⏰ ▷ ✍🏻 ✓ · ☑ ☐ 도 인식)
 const MARK = { done: '✅', open: '▶️', overdue: '💤', rec: '🔶', next: '🔸' };
 const SCHEMA = {
-  Tasks: ['id', 'project', 'title', 'status', 'created', 'done', 'updated', 'due', 'remind', 'repeat', 'until', 'nextId', 'steps', 'dueAuto', 'note', 'list'],
+  Tasks: ['id', 'project', 'title', 'status', 'created', 'done', 'updated', 'due', 'remind', 'repeat', 'until', 'nextId', 'steps', 'dueAuto', 'note', 'list', 'star'],
   Records: ['id', 'date', 'project', 'content', 'next', 'nextDone', 'deleted', 'updated'],
 };
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -153,12 +154,13 @@ function apiSaveTask(key, input) {
   return withLock_(function () {
     const today = today_();
     const cur = input.id ? find_('Tasks', input.id) : null;
-    const t = cur || { id: safeId_(input.id), project: '', title: '', status: 'open', created: today, done: '', due: '', remind: '', repeat: '', until: '', nextId: '', steps: '', dueAuto: '', note: '', list: '' };
+    const t = cur || { id: safeId_(input.id), project: '', title: '', status: 'open', created: today, done: '', due: '', remind: '', repeat: '', until: '', nextId: '', steps: '', dueAuto: '', note: '', list: '', star: '' };
     let spawned = null, removed = '';
     const prevProject = t.project;
     if (input.project != null) t.project = clean_(input.project);
     if (input.title != null) t.title = clean_(input.title);
-    if (input.note != null) t.note = cleanMulti_(input.note);   // 할일 메모 (메모 앱으로는 넘기지 않음)
+    if (input.note != null) t.note = cleanMulti_(input.note);   // 할일 메모 (메모 앱에는 할일 아래 🔸 줄)
+    if (input.star != null) t.star = input.star && input.star !== '0' ? '1' : '';   // 중요 ⭐
     // 목록: '' = Research To-do, 'backlog' = Backlog
     if (input.list != null) t.list = input.list === 'backlog' ? 'backlog' : '';
     // Backlog 항목에 태그를 새로 붙이거나 바꾸면 Research To-do로 이동 (같은 저장에서 목록을 직접 지정한 경우는 제외)
@@ -199,7 +201,7 @@ function apiSaveTask(key, input) {
           spawned = {
             id: newId_(), project: t.project, title: t.title, status: 'open', created: today, done: '',
             due: nd, remind: shiftRemind_(t.remind, t.due, nd), repeat: t.repeat, until: t.until, nextId: '', updated: stamp_(),
-            dueAuto: t.dueAuto, note: t.note, list: t.list,
+            dueAuto: t.dueAuto, note: t.note, list: t.list, star: t.star,
             // 단계는 체크 해제해서 복사, 단계 마감도 회차 간격만큼 이동
             steps: stepsToStr_(stepsOf_(t.steps).map(function (x) {
               return { t: x.t, d: false, due: x.due && t.due ? shiftDate_(x.due, t.due, nd) : '' };
@@ -289,7 +291,7 @@ function apiImport(key, text, defaultDate) {
           } else if (same.some(function (t) { return t.done === day.date; })) {
             res.skipped++;
           } else {
-            const n = { id: newId_(), project: it.project, title: it.title, status: 'done', created: day.date, done: day.date, updated: now, due: '', remind: '', steps: stepsToStr_(it.steps), note: it.note || '' };
+            const n = { id: newId_(), project: it.project, title: it.title, status: 'done', created: day.date, done: day.date, updated: now, due: '', remind: '', steps: stepsToStr_(it.steps), note: it.note || '', star: it.star || '' };
             tasks.push(n); newTasks.push(n); res.added++;
           }
         } else {
@@ -299,7 +301,7 @@ function apiImport(key, text, defaultDate) {
             if (ongoing.created > day.date) { ongoing.created = day.date; touch(ongoing); }
             res.skipped++;
           } else {
-            const n = { id: newId_(), project: it.project, title: it.title, status: 'open', created: day.date, done: '', updated: now, due: maxStepDue_(it.steps), dueAuto: maxStepDue_(it.steps) ? '1' : '', remind: '', steps: stepsToStr_(it.steps), note: it.note || '' };
+            const n = { id: newId_(), project: it.project, title: it.title, status: 'open', created: day.date, done: '', updated: now, due: maxStepDue_(it.steps), dueAuto: maxStepDue_(it.steps) ? '1' : '', remind: '', steps: stepsToStr_(it.steps), note: it.note || '', star: it.star || '' };
             tasks.push(n); newTasks.push(n); res.added++;
           }
         }
@@ -342,7 +344,7 @@ function buildNotes_(date, withHeader) {
   }).map(function (t) {
     const mark = t.status === 'done' && t.done === date ? MARK.done
       : (t.due && t.due < date ? MARK.overdue : MARK.open);
-    const lines = [mark + ' ' + label_(t.project, t.title)];
+    const lines = [mark + ' ' + label_(t.project, t.title) + (t.star ? ' ' + STAR : '')];
     // 할일 메모: 할일 바로 아래 들여쓴 🔸 줄 (여러 줄이면 줄마다)
     nextItems_(t.note).forEach(function (x) { lines.push(STEP_INDENT + MARK.next + ' ' + x); });
     stepsOf_(t.steps).forEach(function (x) {
@@ -432,7 +434,8 @@ function parseNote_(text, defaultDate) {
     const body = stripMark_(line);
     if (kind === 'done' || kind === 'open') {
       const s = splitProj_(body);
-      lastTask = { project: s.project, title: s.text, status: kind, steps: [], note: '' };
+      const starM = s.text.match(/^([\s\S]*?)\s*⭐️?$/);   // 끝의 ⭐ = 중요
+      lastTask = { project: s.project, title: starM ? starM[1] : s.text, star: starM ? '1' : '', status: kind, steps: [], note: '' };
       day.tasks.push(lastTask);
       last = null; lastField = '';
     } else if (kind === 'rec') {

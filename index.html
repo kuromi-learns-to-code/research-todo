@@ -72,6 +72,31 @@ ul.list { list-style: none; margin: 0; padding: 0; }
 .task { display: flex; align-items: flex-start; gap: 10px; padding: 10px 2px; border-top: 1px solid var(--line); }
 .task:first-child { border-top: 0; }
 .svwarn { background: #fde4dc; border: 1px solid #f3b9a6; color: #8a2f1c; border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; font-size: 13px; line-height: 1.5; }
+/* 중요 ⭐: 꺼져 있으면 흐린 회색 별, 켜면 노란 별 */
+.star { flex: 0 0 auto; border: 0; background: transparent; padding: 3px; margin-top: -1px; cursor: pointer; line-height: 0; border-radius: 6px; align-self: flex-start; }
+.star .emo { width: 18px; height: 18px; vertical-align: 0; filter: grayscale(1); opacity: .22; }
+.star:hover .emo { opacity: .5; }
+.star.on .emo { filter: none; opacity: 1; }
+/* 월 캘린더 (월~금) */
+.wrap.wide { max-width: 1100px; }
+.calbtn { border: 0; background: transparent; padding: 2px 4px; margin-left: 4px; cursor: pointer; border-radius: 6px; line-height: 0; vertical-align: -3px; }
+.calbtn .emo { width: 18px; height: 18px; vertical-align: 0; }
+.calbtn:hover, .calbtn.on { background: var(--accent-weak); }
+.calhead { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.calhead h2 { margin: 0; flex: 1; justify-content: center; }
+.calgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.calhd { text-align: center; font-size: 12px; color: var(--muted); font-weight: 600; padding: 2px 0; }
+.calcell { min-height: 96px; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; gap: 1px; }
+.calcell.out { opacity: .45; }
+.calcell.today { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.calnum { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 1px; }
+.calcell.today .calnum { color: var(--accent); }
+.calitem { display: flex; align-items: center; gap: 3px; width: 100%; min-width: 0; border: 0; background: transparent; padding: 1px 0; font-size: 12.5px; line-height: 1.35; text-align: left; cursor: pointer; color: var(--text); border-radius: 4px; }
+.calitem:hover { background: var(--accent-weak); }
+.calitem .emo { width: 13px; height: 13px; flex: 0 0 auto; vertical-align: 0; }
+.calitem span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }   /* 칸을 넘으면 … (창 크기에 따라 글자 수 자동 조정) */
+.calitem.done span { color: var(--muted); text-decoration: line-through; }
+@media (max-width: 520px) { .calcell { min-height: 72px; padding: 3px 2px; } .calitem { font-size: 11px; } .calitem .emo { width: 11px; height: 11px; } }
 .tnote { font-size: 13px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .task[draggable="true"] { cursor: grab; }
 .task.dragging { opacity: .45; }
@@ -208,7 +233,7 @@ dialog .acts .sp { flex: 1; }
     <header class="top">
       <div>
         <h1>Research Notes</h1>
-        <div class="sub" id="todayLabel"></div>
+        <div class="sub"><span id="todayLabel"></span><button type="button" class="calbtn" id="calBtn" aria-label="월 캘린더" title="월 캘린더"><img class="emo" src="icons/emoji/1f4c5.svg" alt="📅" draggable="false"></button></div>
       </div>
       <button class="icon-btn" id="refreshBtn" aria-label="새로고침" title="새로고침">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></svg>
@@ -224,6 +249,20 @@ dialog .acts .sp { flex: 1; }
 
     <div id="svWarn" class="svwarn" hidden></div>
     <div id="loading" class="loading">불러오는 중…</div>
+
+    <!-- ============ 월 캘린더 (날짜 옆 📅) ============ -->
+    <section id="calView" hidden>
+      <div class="card">
+        <div class="calhead">
+          <button type="button" class="icon-btn" id="calPrev" aria-label="이전 달">‹</button>
+          <h2 id="calTitle"></h2>
+          <button type="button" class="icon-btn" id="calNext" aria-label="다음 달">›</button>
+          <button type="button" class="btn ghost sm" id="calToday">이번 달</button>
+          <button type="button" class="btn ghost sm" id="calClose">닫기</button>
+        </div>
+        <div class="calgrid" id="calGrid"></div>
+      </div>
+    </section>
 
     <!-- ============ Research To-do ============ -->
     <section id="tab-todo" hidden>
@@ -428,7 +467,7 @@ dialog .acts .sp { flex: 1; }
 <script>
 /* ---------------- 연결 정보 ---------------- */
 // 이 앱이 필요로 하는 Apps Script(Code.gs) 버전. 더 낮으면 상단에 경고
-const NEED_SERVER = '2026-11-12';
+const NEED_SERVER = '2026-11-16';
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
@@ -459,6 +498,7 @@ const S = {
   doneOpen: store.get('rt.doneOpen2') === '1', doneLimit: 20,   // 완료됨 목록 (기본 접힘, 펼침 상태 기억, 20개씩 더 보기)
   pastOpen: store.get('rt.pastOpen2') === '1', pastLimit: 20,   // 지난 분석 기록 (기본 접힘)
   backToToday: false,
+  cal: false, calMonth: '',   // 월 캘린더 보기
 };
 
 const $ = (s) => document.querySelector(s);
@@ -540,7 +580,7 @@ function dueText(t) {
   return `${mmdd(t.due)} (${WD[dowOf(t.due)]}) 마감`;
 }
 // 이모지는 기기 글꼴 대신 테두리 없는 Noto 이모지 그림으로 (PC·아이폰 동일)
-const EMO = { done: ['2705', '✅'], open: ['25b6', '▶️'], late: ['1f4a4', '💤'], rec: ['1f536', '🔶'], next: ['1f538', '🔸'], bell: ['1f514', '🔔'], cal: ['1f4c5', '📅'] };
+const EMO = { done: ['2705', '✅'], open: ['25b6', '▶️'], late: ['1f4a4', '💤'], rec: ['1f536', '🔶'], next: ['1f538', '🔸'], bell: ['1f514', '🔔'], cal: ['1f4c5', '📅'], star: ['2b50', '⭐'] };
 const em = (k) => `<img class="emo" src="icons/emoji/${EMO[k][0]}.svg" alt="${EMO[k][1]}" draggable="false">`;
 /** 할일·단계 상태: done ✅ / late 💤 (마감 지남) / open ▶️ */
 const stateOf = (doneFlag, due) => doneFlag ? 'done' : (due && due < S.today ? 'late' : 'open');
@@ -614,7 +654,7 @@ function load(silent) {
     $('#gate').hidden = true;
     $('#app').hidden = false;
     $('#loading').hidden = true;
-    showTab(S.tab);
+    if (!S.cal) showTab(S.tab);   // 캘린더를 보고 있으면 자동 새로고침 때 닫지 않음
     renderAll();
   }).catch((err) => {
     const m = (err && err.message) || String(err);
@@ -633,6 +673,7 @@ function renderAll() {
   tRem.sync();
   renderRecords();
   if (S.tab === 'etc') renderEtc();
+  if (S.cal) renderCal();
 }
 
 function projectsByRecency() {
@@ -663,6 +704,7 @@ function taskRow(t) {
         ${note ? `<div class="tnote">${esc(note.split('\n')[0])}${note.indexOf('\n') >= 0 ? ' …' : ''}</div>` : ''}
         ${stepListHtml(t)}
       </div>
+      <button type="button" class="star${t.star ? ' on' : ''}" data-act="star" aria-label="${t.star ? '중요 해제' : '중요 표시'}" title="${t.star ? '중요 해제' : '중요 표시'}">${em('star')}</button>
     </li>`;
 }
 const byDue = (list) => list.map((t, i) => [t, i])
@@ -824,6 +866,7 @@ function renderEtc() {
 }
 
 function showTab(tab) {
+  if (S.cal) closeCal();   // 탭을 누르면 캘린더에서 빠져나옴
   S.tab = tab;
   document.querySelectorAll('nav.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
   ['todo', 'backlog', 'rec', 'etc'].forEach((t) => { $('#tab-' + t).hidden = t !== tab; });
@@ -1005,10 +1048,69 @@ function taskClick(e) {
     if (st[i]) { st[i].d = !st[i].d; saveTask(t, { steps: st }).catch(() => {}); }
     return;
   }
+  if (el.dataset.act === 'star') { saveTask(t, { star: !t.star }).catch(() => {}); return; }   // 중요 ⭐ 켜기/끄기
   if (el.dataset.act === 'toggle') {
     saveTask(t, t.status === 'done' ? { status: 'open', done: '' } : { status: 'done', done: S.today }).catch(() => {});
   } else openTaskDialog(t);
 }
+
+/* ---------------- 월 캘린더: 월~금, 마감일 칸에 대표 할일 (입력 순) ---------------- */
+function openCal() {
+  S.cal = true;
+  if (!S.calMonth) S.calMonth = S.today.slice(0, 7);
+  ['todo', 'backlog', 'rec', 'etc'].forEach((t) => { $('#tab-' + t).hidden = true; });
+  document.querySelectorAll('nav.tabs button').forEach((b) => b.classList.remove('on'));
+  $('#calView').hidden = false;
+  $('.wrap').classList.add('wide');
+  $('#calBtn').classList.add('on');
+  renderCal();
+}
+function closeCal() {
+  S.cal = false;
+  $('#calView').hidden = true;
+  $('.wrap').classList.remove('wide');
+  $('#calBtn').classList.remove('on');
+}
+const isWeekend = (d) => { const w = dowOf(d); return w === 0 || w === 6; };
+function renderCal() {
+  const [y, m] = S.calMonth.split('-').map(Number);
+  $('#calTitle').textContent = `${y}년 ${m}월`;
+  const first = `${S.calMonth}-01`;
+  const last = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  let firstWd = first; while (isWeekend(firstWd)) firstWd = addDays(firstWd, 1);
+  let lastWd = last; while (isWeekend(lastWd)) lastWd = addDays(lastWd, -1);
+  // 마감일 있는 대표 할일만 (Backlog·단계 제외). S.tasks는 시트 순서 = 입력 순
+  const byDay = {};
+  S.tasks.forEach((t) => {
+    if (!t.due || t.status === 'deleted' || inBacklog(t)) return;
+    const w = dowOf(t.due);
+    const cell = w === 6 ? addDays(t.due, -1) : w === 0 ? addDays(t.due, -2) : t.due;   // 주말 마감은 그 주 금요일 칸에 (토)/(일) 표시
+    (byDay[cell] = byDay[cell] || []).push(t);
+  });
+  let html = ['월', '화', '수', '목', '금'].map((d) => `<div class="calhd">${d}</div>`).join('');
+  for (let wk = addDays(firstWd, -((dowOf(firstWd) + 6) % 7)); wk <= lastWd; wk = addDays(wk, 7)) {
+    for (let i = 0; i < 5; i++) {
+      const d = addDays(wk, i);
+      const items = (byDay[d] || []).map((t) => {
+        const label = (t.due !== d ? `(${WD[dowOf(t.due)]}) ` : '') + (t.project ? `[${t.project}] ` : '') + t.title;
+        return `<button type="button" class="calitem${t.status === 'done' ? ' done' : ''}" data-id="${esc(t.id)}" title="${esc(label)}">${em(stateOf(t.status === 'done', t.due))}<span>${esc(label)}</span></button>`;
+      }).join('');
+      html += `<div class="calcell${d.slice(0, 7) === S.calMonth ? '' : ' out'}${d === S.today ? ' today' : ''}"><div class="calnum">${Number(d.slice(8))}</div>${items}</div>`;
+    }
+  }
+  $('#calGrid').innerHTML = html;
+}
+const shiftMonth = (n) => { const [y, m] = S.calMonth.split('-').map(Number); S.calMonth = new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7); renderCal(); };
+$('#calBtn').addEventListener('click', () => { if (S.cal) { closeCal(); showTab(S.tab); } else openCal(); });
+$('#calClose').addEventListener('click', () => { closeCal(); showTab(S.tab); });
+$('#calPrev').addEventListener('click', () => shiftMonth(-1));
+$('#calNext').addEventListener('click', () => shiftMonth(1));
+$('#calToday').addEventListener('click', () => { S.calMonth = S.today.slice(0, 7); renderCal(); });
+$('#calGrid').addEventListener('click', (e) => {
+  const b = e.target.closest('.calitem');
+  const t = b && S.tasks.find((x) => x.id === b.dataset.id);
+  if (t) openTaskDialog(t);
+});
 
 /* ---------------- Research To-do ↔ Backlog 옮기기 ---------------- */
 function moveTask(t, list) {
