@@ -1139,8 +1139,8 @@ function renderCal() {
   $('#calGrid').innerHTML = html;
 }
 const shiftMonth = (n) => { const [y, m] = S.calMonth.split('-').map(Number); S.calMonth = new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7); renderCal(); };
-$('#calBtn').addEventListener('click', () => { if (S.cal) { closeCal(); showTab(S.tab); } else openCal(); });
-$('#calClose').addEventListener('click', () => { closeCal(); showTab(S.tab); });
+$('#calBtn').addEventListener('click', () => { if (S.cal) { closeCal(); showTab(S.tab); } else openCal(); toTop(); });
+$('#calClose').addEventListener('click', () => { closeCal(); showTab(S.tab); toTop(); });
 $('#calPrev').addEventListener('click', () => shiftMonth(-1));
 $('#calNext').addEventListener('click', () => shiftMonth(1));
 $('#calToday').addEventListener('click', () => { S.calMonth = S.today.slice(0, 7); renderCal(); });
@@ -1592,8 +1592,10 @@ $('#iRun').addEventListener('click', () => {
 });
 
 /* ---------------- 공통 ---------------- */
+const toTop = () => window.scrollTo({ top: 0, behavior: 'instant' });   // 화면을 바꾸면 맨 위부터 보이게
 document.querySelectorAll('nav.tabs button').forEach((b) => b.addEventListener('click', () => {
   showTab(b.dataset.tab);
+  toTop();
   if (b.dataset.tab === 'etc') { renderEtc(); if (matchMedia('(pointer: fine)').matches) $('#qInput').focus(); }
 }));
 $('#refreshBtn').addEventListener('click', () => load());
