@@ -36,7 +36,7 @@ button, input, textarea { font: inherit; color: inherit; }
 input, textarea { font-size: 16px; }
 .wrap { max-width: 720px; margin: 0 auto; padding: 0 16px 48px; }
 
-header.top { display: flex; align-items: flex-end; justify-content: space-between; padding: 20px 0 12px; }
+header.top { display: flex; align-items: flex-end; justify-content: space-between; padding: 20px 0 12px; }   /* 아래 12px = 날짜 줄 ~ 탭 사이 공백 */
 header.top h1 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
 header.top .sub { color: var(--muted); font-size: 13px; }
 .icon-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; width: 38px; height: 38px; cursor: pointer; display: grid; place-items: center; }
@@ -44,8 +44,8 @@ header.top .sub { color: var(--muted); font-size: 13px; }
 .icon-btn.spin svg { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* 탭 틀 고정: 스크롤해도 탭은 화면 위에 붙어 있고 아래 내용만 움직임 */
-.tabbar { position: sticky; top: 0; z-index: 6; background: var(--bg); padding: 8px 0 12px; margin-bottom: 4px; }
+/* 상단 틀 고정: 제목·날짜·탭이 화면 위에 붙어 있고 아래 내용만 움직임. 아래 12px = 탭 ~ 카드 사이 공백 */
+.tabbar { position: sticky; top: 0; z-index: 6; background: var(--bg); padding: 0 0 12px; }
 .tabbar.stuck { box-shadow: 0 8px 10px -10px rgba(140, 80, 50, .35); }
 nav.tabs { display: flex; gap: 4px; background: var(--accent-weak); padding: 4px; border-radius: 12px; }
 nav.tabs button { flex: 1; min-width: 0; word-break: keep-all; border: 0; background: transparent; padding: 8px 4px; font-size: 14px; line-height: 1.25; border-radius: 9px; cursor: pointer; color: var(--muted); font-weight: 500; }
@@ -246,6 +246,7 @@ dialog .acts .sp { flex: 1; }
   </div>
 
   <div id="app" hidden>
+    <div class="tabbar" id="tabbar">
     <header class="top">
       <div>
         <h1>Research Notes</h1>
@@ -255,8 +256,6 @@ dialog .acts .sp { flex: 1; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></svg>
       </button>
     </header>
-
-    <div class="tabbar" id="tabbar">
     <nav class="tabs">
       <button data-tab="todo" class="on">Research To‑do</button>
       <button data-tab="backlog">Backlog</button>
