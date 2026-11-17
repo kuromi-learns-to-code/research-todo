@@ -14,7 +14,7 @@
 
 const TZ = 'Asia/Seoul';
 // 앱(index.html)이 이 값을 확인해서 Apps Script가 오래된 버전이면 경고를 띄운다. 기능을 바꿀 때마다 올릴 것.
-const SERVER_VERSION = '2026-11-17';
+const SERVER_VERSION = '2026-11-17.2';
 const STAR = '⭐';   // 중요 표시 (메모에는 할일 끝에 붙음)
 const H_TODO = '𝑹𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝑻𝒐-𝒅𝒐';
 const H_REC = '𝑨𝒏𝒂𝒍𝒚𝒔𝒊𝒔 𝑹𝒆𝒄𝒐𝒓𝒅𝒔';
@@ -339,11 +339,14 @@ function buildNotes_(date, withHeader) {
   const todo = all.filter(function (t) {
     if (t.status === 'deleted' || !t.created || t.created > date) return false;
     if (t.list === 'backlog') return false;   // Backlog는 메모에 넘기지 않음
-    if (spawnedIds[t.id] && t.status === 'open' && t.due > date) return false;   // 아직 차례가 오지 않은 다음 회차
+    // 반복 할일을 완료한 '그날'에만 새로 생긴 다음 회차를 숨김 (✅와 ▶️가 같은 날 겹치지 않게). 다음 날부터는 보임
+    if (spawnedIds[t.id] && t.status === 'open' && t.created === date && t.due > date) return false;
     if (t.status === 'done' && t.done === date) return true;   // 그날 완료한 일은 항상
     const openThen = t.status === 'open' || (t.status === 'done' && t.done > date);
-    // 남은 할일은 마감일이 '주말 제외 오늘부터 7일' 안인 것만 (마감 지난 💤 포함, 마감 없는 할일 제외)
-    return openThen && !!t.due && t.due <= windowEnd;
+    // 남은 할일은 마감일이 '주말 제외 오늘부터 7일' 안인 것만 (마감 지난 💤 포함, 마감 없는 할일 제외).
+    // 할일 마감은 범위 밖이어도, 아직 안 끝난 단계의 마감이 범위 안이면 포함
+    const stepDueSoon = stepsOf_(t.steps).some(function (x) { return !x.d && x.due && x.due <= windowEnd; });
+    return openThen && ((!!t.due && t.due <= windowEnd) || stepDueSoon);
   }).map(function (t) {
     const mark = t.status === 'done' && t.done === date ? MARK.done
       : (t.due && t.due < date ? MARK.overdue : MARK.open);
