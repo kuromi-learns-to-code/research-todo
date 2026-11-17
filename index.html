@@ -46,11 +46,13 @@ header.top .sub { color: var(--muted); font-size: 13px; }
 
 nav.tabs { display: flex; gap: 4px; background: var(--accent-weak); padding: 4px; border-radius: 12px; margin-bottom: 16px; }
 nav.tabs button { flex: 1; min-width: 0; word-break: keep-all; border: 0; background: transparent; padding: 8px 4px; font-size: 14px; line-height: 1.25; border-radius: 9px; cursor: pointer; color: var(--muted); font-weight: 500; }
-nav.tabs button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+nav.tabs button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); font-weight: 700; }
 
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 16px; box-shadow: var(--shadow); }
 .card h2 { margin: 0 0 12px; font-size: 16px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .card h2 .count { font-size: 13px; color: var(--muted); font-weight: 400; }
+/* 탭에 제목이 있으므로 카드 제목 대신 개수 요약만 크게 */
+.card .summary { margin: 0 0 12px; font-size: 17px; font-weight: 700; color: var(--text); }
 
 .row { display: flex; gap: 8px; }
 .field { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 9px 11px; min-width: 0; width: 100%; outline: none; }
@@ -278,7 +280,7 @@ dialog .acts .sp { flex: 1; }
     <!-- ============ Research To-do ============ -->
     <section id="tab-todo" hidden>
       <div class="card">
-        <h2>Research To-do <span class="count" id="taskCount"></span></h2>
+        <div class="summary" id="taskCount"></div>
         <form id="taskForm" class="row">
           <input id="tProj" class="field proj" list="projList" placeholder="프로젝트" autocomplete="off">
           <input id="tTitle" class="field" placeholder="할 일 추가" autocomplete="off" enterkeyhint="done">
@@ -317,7 +319,7 @@ dialog .acts .sp { flex: 1; }
     <!-- ============ Backlog ============ -->
     <section id="tab-backlog" hidden>
       <div class="card">
-        <h2>Backlog <span class="count" id="bCount"></span></h2>
+        <div class="summary" id="bCount"></div>
         <form id="bForm" class="row">
           <input id="bTitle" class="field" placeholder="Backlog에 추가" autocomplete="off" enterkeyhint="done">
           <button class="btn">추가</button>
@@ -330,7 +332,6 @@ dialog .acts .sp { flex: 1; }
     <!-- ============ Analysis Records ============ -->
     <section id="tab-rec" hidden>
       <div class="card">
-        <h2>Analysis Records</h2>
         <form id="recForm" class="rec-form">
           <div class="row">
             <input id="rDate" type="date" class="field" style="flex:0 0 auto;width:auto">
@@ -739,7 +740,7 @@ function renderBacklog() {
   const items = S.tasks.filter((t) => inBacklog(t) && t.status !== 'deleted');
   const open = byDue(items.filter((t) => t.status === 'open'));
   const done = items.filter((t) => t.status === 'done').sort((a, b) => b.done.localeCompare(a.done));
-  $('#bCount').textContent = `${open.length}개`;
+  $('#bCount').textContent = `${open.length}개 대기`;
   let html = open.length ? open.map(taskRow).join('') : '<li class="empty">Backlog가 비어 있습니다.</li>';
   if (done.length) html += `<li class="divider">완료</li>` + done.slice(0, 20).map(taskRow).join('');
   $('#backlogList').innerHTML = html;
