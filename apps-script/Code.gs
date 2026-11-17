@@ -14,7 +14,7 @@
 
 const TZ = 'Asia/Seoul';
 // 앱(index.html)이 이 값을 확인해서 Apps Script가 오래된 버전이면 경고를 띄운다. 기능을 바꿀 때마다 올릴 것.
-const SERVER_VERSION = '2026-11-16';
+const SERVER_VERSION = '2026-11-17';
 const STAR = '⭐';   // 중요 표시 (메모에는 할일 끝에 붙음)
 const H_TODO = '𝑹𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝑻𝒐-𝒅𝒐';
 const H_REC = '𝑨𝒏𝒂𝒍𝒚𝒔𝒊𝒔 𝑹𝒆𝒄𝒐𝒓𝒅𝒔';
@@ -332,6 +332,7 @@ function apiImport(key, text, defaultDate) {
  *   😡 : 그중 마감일이 이미 지난 할일 (밀린 일)
  * ===================================================================== */
 function buildNotes_(date, withHeader) {
+  const windowEnd = weekdayWindowEnd_(date, NOTES_WEEKDAYS);
   const all = read_('Tasks');
   const spawnedIds = {};   // 반복 할일을 완료해서 자동으로 생긴 다음 회차
   all.forEach(function (t) { if (t.nextId) spawnedIds[t.nextId] = true; });
@@ -339,8 +340,10 @@ function buildNotes_(date, withHeader) {
     if (t.status === 'deleted' || !t.created || t.created > date) return false;
     if (t.list === 'backlog') return false;   // Backlog는 메모에 넘기지 않음
     if (spawnedIds[t.id] && t.status === 'open' && t.due > date) return false;   // 아직 차례가 오지 않은 다음 회차
-    if (t.status === 'open') return true;
-    return t.status === 'done' && t.done >= date;
+    if (t.status === 'done' && t.done === date) return true;   // 그날 완료한 일은 항상
+    const openThen = t.status === 'open' || (t.status === 'done' && t.done > date);
+    // 남은 할일은 마감일이 '주말 제외 오늘부터 7일' 안인 것만 (마감 지난 💤 포함, 마감 없는 할일 제외)
+    return openThen && !!t.due && t.due <= windowEnd;
   }).map(function (t) {
     const mark = t.status === 'done' && t.done === date ? MARK.done
       : (t.due && t.due < date ? MARK.overdue : MARK.open);
@@ -581,6 +584,19 @@ function nextItems_(s) { return String(s || '').split('\n').map(function (x) { r
 function label_(project, text) { return project ? '[' + project + '] ' + text : text; }
 function strip_(o) { const c = {}; Object.keys(o).forEach(function (k) { if (k !== '_row') c[k] = o[k]; }); return c; }
 function pad2_(n) { return ('0' + n).slice(-2); }
+
+/* ---------- 메모 내보내기 범위 ---------- */
+const NOTES_WEEKDAYS = 7;   // 메모에 넘길 남은 할일: 마감일이 주말 제외 오늘부터 7일(오늘 포함) 안
+/** date부터 주말을 빼고 n번째 평일 (date가 평일이면 1번째로 셈) */
+function weekdayWindowEnd_(date, n) {
+  let d = date, count = 0;
+  for (let i = 0; i < 40; i++) {
+    const w = new Date(ymdToUTC_(d)).getUTCDay();
+    if (w !== 0 && w !== 6) { count++; if (count === n) return d; }
+    d = addDays_(d, 1);
+  }
+  return d;
+}
 
 /* ---------- 단계 ---------- */
 function stepsOf_(v) {

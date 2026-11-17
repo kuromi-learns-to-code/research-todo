@@ -487,7 +487,7 @@ dialog .acts .sp { flex: 1; }
 <script>
 /* ---------------- 연결 정보 ---------------- */
 // 이 앱이 필요로 하는 Apps Script(Code.gs) 버전. 더 낮으면 상단에 경고
-const NEED_SERVER = '2026-11-16';
+const NEED_SERVER = '2026-11-17';
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
@@ -1101,12 +1101,14 @@ function renderCal() {
   const last = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
   let firstWd = first; while (isWeekend(firstWd)) firstWd = addDays(firstWd, 1);
   let lastWd = last; while (isWeekend(lastWd)) lastWd = addDays(lastWd, -1);
-  // 마감일 있는 대표 할일만 (Backlog·단계 제외). S.tasks는 시트 순서 = 입력 순
+  // 대표 할일만 (Backlog·단계 제외): 완료한 일은 완료일, 남은 일은 마감일 칸. S.tasks는 시트 순서 = 입력 순
+  const calDay = (t) => (t.status === 'done' ? t.done : t.due);
   const byDay = {};
   S.tasks.forEach((t) => {
-    if (!t.due || t.status === 'deleted' || inBacklog(t)) return;
-    const w = dowOf(t.due);
-    const cell = w === 6 ? addDays(t.due, -1) : w === 0 ? addDays(t.due, -2) : t.due;   // 주말 마감은 그 주 금요일 칸에 (토)/(일) 표시
+    const day = calDay(t);
+    if (!day || t.status === 'deleted' || inBacklog(t)) return;
+    const w = dowOf(day);
+    const cell = w === 6 ? addDays(day, -1) : w === 0 ? addDays(day, -2) : day;   // 주말은 그 주 금요일 칸에 (토)/(일) 표시
     (byDay[cell] = byDay[cell] || []).push(t);
   });
   let html = ['월', '화', '수', '목', '금'].map((d) => `<div class="calhd">${d}</div>`).join('');
@@ -1114,7 +1116,7 @@ function renderCal() {
     for (let i = 0; i < 5; i++) {
       const d = addDays(wk, i);
       const items = (byDay[d] || []).map((t) => {
-        const label = (t.due !== d ? `(${WD[dowOf(t.due)]}) ` : '') + (t.project ? `[${t.project}] ` : '') + t.title;
+        const label = (calDay(t) !== d ? `(${WD[dowOf(calDay(t))]}) ` : '') + (t.project ? `[${t.project}] ` : '') + t.title;
         return `<button type="button" class="calitem${t.status === 'done' ? ' done' : ''}" data-id="${esc(t.id)}" title="${esc(label)}">${em(stateOf(t.status === 'done', t.due))}<span>${esc(label)}</span></button>`;
       }).join('');
       html += `<div class="calcell${d.slice(0, 7) === S.calMonth ? '' : ' out'}${d === S.today ? ' today' : ''}"><div class="calnum">${Number(d.slice(8))}</div>${items}</div>`;
