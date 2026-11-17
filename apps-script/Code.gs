@@ -14,7 +14,8 @@
 
 const TZ = 'Asia/Seoul';
 // 앱(index.html)이 이 값을 확인해서 Apps Script가 오래된 버전이면 경고를 띄운다. 기능을 바꿀 때마다 올릴 것.
-const SERVER_VERSION = '2026-11-17.2';
+const SERVER_VERSION = '2026-11-17.3';
+const DEADLINE_HOUR = 18;   // 마감 시각: 마감일 18:00 (그때까지 완료 안 하면 💤)
 const STAR = '⭐';   // 중요 표시 (메모에는 할일 끝에 붙음)
 const H_TODO = '𝑹𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝑻𝒐-𝒅𝒐';
 const H_REC = '𝑨𝒏𝒂𝒍𝒚𝒔𝒊𝒔 𝑹𝒆𝒄𝒐𝒓𝒅𝒔';
@@ -349,12 +350,12 @@ function buildNotes_(date, withHeader) {
     return openThen && ((!!t.due && t.due <= windowEnd) || stepDueSoon);
   }).map(function (t) {
     const mark = t.status === 'done' && t.done === date ? MARK.done
-      : (t.due && t.due < date ? MARK.overdue : MARK.open);
+      : (isLateOn_(t.due, date) ? MARK.overdue : MARK.open);
     const lines = [mark + ' ' + label_(t.project, t.title) + (t.star ? ' ' + STAR : '')];
     // 할일 메모: 할일 바로 아래 들여쓴 🔸 줄 (여러 줄이면 줄마다)
     nextItems_(t.note).forEach(function (x) { lines.push(STEP_INDENT + MARK.next + ' ' + x); });
     stepsOf_(t.steps).forEach(function (x) {
-      const sm = x.d ? MARK.done : (x.due && x.due < date ? MARK.overdue : MARK.open);
+      const sm = x.d ? MARK.done : (isLateOn_(x.due, date) ? MARK.overdue : MARK.open);
       lines.push(STEP_INDENT + sm + ' ' + x.t + stepDueLabel_(x.due));
     });
     return lines.join('\n');
@@ -576,6 +577,13 @@ function withLock_(fn) {
   try { return fn(); } finally { lock.releaseLock(); }
 }
 
+function nowHour_() { return Number(Utilities.formatDate(new Date(), TZ, 'HH')); }
+/** 메모 날짜(date) 기준 마감 지남: 마감일이 더 이전이거나, 마감일 당일 18시가 지났을 때 (지난 날짜 메모면 이미 지난 것) */
+function isLateOn_(due, date) {
+  if (!due || due > date) return false;
+  if (due < date) return true;
+  return date < today_() || nowHour_() >= DEADLINE_HOUR;
+}
 function today_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'); }
 function stamp_() { return Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd'T'HH:mm:ss"); }
 function newId_() { return Utilities.getUuid().replace(/-/g, '').slice(0, 12); }
