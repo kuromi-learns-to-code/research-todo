@@ -44,7 +44,10 @@ header.top .sub { color: var(--muted); font-size: 13px; }
 .icon-btn.spin svg { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-nav.tabs { display: flex; gap: 4px; background: var(--accent-weak); padding: 4px; border-radius: 12px; margin-bottom: 16px; }
+/* 탭 틀 고정: 스크롤해도 탭은 화면 위에 붙어 있고 아래 내용만 움직임 */
+.tabbar { position: sticky; top: 0; z-index: 6; background: var(--bg); padding: 8px 0 12px; margin-bottom: 4px; }
+.tabbar.stuck { box-shadow: 0 8px 10px -10px rgba(140, 80, 50, .35); }
+nav.tabs { display: flex; gap: 4px; background: var(--accent-weak); padding: 4px; border-radius: 12px; }
 nav.tabs button { flex: 1; min-width: 0; word-break: keep-all; border: 0; background: transparent; padding: 8px 4px; font-size: 14px; line-height: 1.25; border-radius: 9px; cursor: pointer; color: var(--muted); font-weight: 500; }
 nav.tabs button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); font-weight: 700; }
 
@@ -253,12 +256,14 @@ dialog .acts .sp { flex: 1; }
       </button>
     </header>
 
+    <div class="tabbar" id="tabbar">
     <nav class="tabs">
       <button data-tab="todo" class="on">Research To‑do</button>
       <button data-tab="backlog">Backlog</button>
       <button data-tab="rec">Analysis Records</button>
       <button data-tab="etc">ETC</button>
     </nav>
+    </div>
 
     <div id="svWarn" class="svwarn" hidden></div>
     <div id="loading" class="loading">불러오는 중…</div>
@@ -846,6 +851,8 @@ function checkReminders() {
   renderTasks();
 }
 setInterval(checkReminders, 20000);
+// 탭이 화면 위에 붙었을 때만 아래쪽 그림자
+addEventListener('scroll', () => { const tb = $('#tabbar'); tb.classList.toggle('stuck', tb.getBoundingClientRect().top <= 0.5 && scrollY > 0); }, { passive: true });
 // 18시가 되면 화면을 다시 그려 오늘 마감 할일을 💤로 바꿈
 let lastCutoff = pastCutoff();
 setInterval(() => { const c = pastCutoff(); if (c !== lastCutoff) { lastCutoff = c; if (S.loadedAt) renderAll(); } }, 30000);
