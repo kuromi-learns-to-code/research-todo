@@ -541,7 +541,7 @@ const dueFor = (kind) => kind === 'today' ? S.today : kind === 'tomorrow' ? addD
 function dueHtml(t) {
   if (!t.due || t.status !== 'open') return '';
   const d = diffDays(S.today, t.due);
-  if (d < 0) return `<span class="due over">${mmdd(t.due)} 마감 · 지연 ${-d}일째</span>`;
+  if (d < 0) return `<span class="due over">${mmdd(t.due)} 마감 · 지연 ${lateDays(t.due)}일째</span>`;
   if (d === 0) return pastCutoff() ? '<span class="due over">오늘 마감 · 지연</span>' : '<span class="due soon">오늘 마감</span>';
   if (d === 1) return '<span class="due soon">내일 마감</span>';
   return `<span class="due">${mmdd(t.due)} (${WD[dowOf(t.due)]}) 마감</span>`;
@@ -599,7 +599,7 @@ function remHtml(t) {
 function dueText(t) {
   if (!t.due) return '';
   const d = diffDays(S.today, t.due);
-  if (d < 0) return `${mmdd(t.due)} 마감 · 지연 ${-d}일째`;
+  if (d < 0) return `${mmdd(t.due)} 마감 · 지연 ${lateDays(t.due)}일째`;
   if (d === 0) return pastCutoff() ? '오늘 마감 · 지연' : '오늘 마감';
   if (d === 1) return '내일 마감';
   return `${mmdd(t.due)} (${WD[dowOf(t.due)]}) 마감`;
@@ -614,6 +614,8 @@ const DEADLINE_HOUR = 18;   // 마감 시각: 마감일 18:00
 const pastCutoff = () => new Date().getHours() >= DEADLINE_HOUR;
 /** 마감 지남: 마감일이 지났거나, 오늘 마감인데 18시가 지남 */
 const isLate = (due) => !!due && (due < S.today || (due === S.today && pastCutoff()));
+/** 지연 일수: 마감일 18시부터 1일째, 이후 매일 18시마다 하루씩 늘어남 (예: 11/17 마감 → 11/18 18시 전 1일째, 18시 후 2일째) */
+const lateDays = (due) => diffDays(due, S.today) + (pastCutoff() ? 1 : 0);
 const stateOf = (doneFlag, due) => doneFlag ? 'done' : (isLate(due) ? 'late' : 'open');
 const tagHtml = (p) => (p ? `<span class="tag">${esc(p)}</span>` : '');
 
@@ -854,7 +856,11 @@ setInterval(checkReminders, 20000);
 addEventListener('scroll', () => { const tb = $('#tabbar'); tb.classList.toggle('stuck', tb.getBoundingClientRect().top <= 0.5 && scrollY > 0); }, { passive: true });
 // 18시가 되면 화면을 다시 그려 오늘 마감 할일을 💤로 바꿈
 let lastCutoff = pastCutoff();
-setInterval(() => { const c = pastCutoff(); if (c !== lastCutoff) { lastCutoff = c; if (S.loadedAt) renderAll(); } }, 30000);
+setInterval(() => {
+  if (!S.loadedAt) return;
+  if (localDT(new Date()).slice(0, 10) !== S.today) { load(true); return; }   // 자정이 지나면 날짜부터 새로 받아옴
+  const c = pastCutoff(); if (c !== lastCutoff) { lastCutoff = c; renderAll(); }   // 18시가 되면 지연 표시·일수 갱신
+}, 30000);
 
 function renderRecords() {
   $('#rDate').value = S.recDate;
