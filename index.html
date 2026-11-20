@@ -328,7 +328,7 @@ dialog .acts .sp { flex: 1; }
           <input id="bTitle" class="field" placeholder="Backlog에 추가" autocomplete="off" enterkeyhint="done">
           <button class="btn">추가</button>
         </form>
-        <p class="help">태그를 붙이면 Research To‑do로 이동 · PC는 위쪽 탭으로 끌어다 놓기 · 아이폰 메모·알림·아이콘 숫자에서 제외</p>
+        <p class="help">태그를 붙이면 Research To‑do로 이동 · PC는 위쪽 탭으로 끌어다 놓기 · 아이폰 메모·아이콘 숫자에서 제외 (알림은 시각을 넣으면 울림)</p>
         <ul id="backlogList" class="list"></ul>
       </div>
     </section>
@@ -838,13 +838,15 @@ function showNotif(title, body, tag) {
 function checkReminders() {
   if (!S.loadedAt) return;
   const now = nowDT();
-  const hit = S.tasks.filter((t) => t.status === 'open' && !inBacklog(t) && t.remind && t.remind <= now && notified[t.id] !== t.remind);
+  // Backlog 항목도 알림 시각을 넣으면 알림 (잊지 않도록 존재 확인용). 아이콘 숫자·메모에서는 계속 제외
+  const hit = S.tasks.filter((t) => t.status === 'open' && t.remind && t.remind <= now && notified[t.id] !== t.remind);
   if (!hit.length) return;
   const cutoff = new Date(Date.now() - 12 * 3600e3);   // 12시간 넘게 지난 알림은 표시하지 않음
   hit.forEach((t) => {
     notified[t.id] = t.remind;
     if (new Date(t.remind) < cutoff) return;
-    showNotif((t.project ? `[${t.project}] ` : '') + t.title, dueText(t) || '할일 알림', 'rt-' + t.id);
+    const body = inBacklog(t) ? ['Backlog에 있는 할일', dueText(t)].filter(Boolean).join(' · ') : (dueText(t) || '할일 알림');
+    showNotif((t.project ? `[${t.project}] ` : '') + t.title, body, 'rt-' + t.id);
   });
   const live = new Set(S.tasks.map((t) => t.id));
   Object.keys(notified).forEach((id) => { if (!live.has(id)) delete notified[id]; });
